@@ -695,15 +695,16 @@ static int set_snmp(struct rserver *rserver)
     };
     char *userinfo[2] = {"username", "password"};
 
+    if (NULL == rserver)
+            goto err;
 #define ZERO(x) memset(brserver.x, 0, sizeof(brserver.x))
     ZERO(snmp_version);
     ZERO(securelevel);
     ZERO(auth_type);
     ZERO(username);
     ZERO(password);
-
-    if (NULL == rserver)
-            goto err;
+#undef ZERO
+reinput:
     set_normal_tty();
     for (i = 0; i < sizeof(promty) / sizeof(*promty); i++) {
 again:
@@ -775,7 +776,24 @@ userinfo_again:
         if (memcmp(userinfo[i], "password", sizeof("password")) == 0)
             set_normal_tty();
     }
-    set_nonline_tty();
+operat_again:
+    fprintf(stdout, "\n[O]verwrite old/[Q]uit give up new/[R]e input:");
+    memset(tmp_buf, 0x00, sizeof(tmp_buf));
+    scanf("%s", tmp_buf);
+    switch (tmp_buf[0]) {
+        case 'O':
+        case 'o':
+            goto overwrite;
+        case 'Q':
+        case 'q':
+            goto end;
+        case 'R':
+        case 'r':
+            goto reinput;
+        default:
+            goto operat_again;
+    }
+overwrite:
 #define COPY(x) memcpy(rserver->x,brserver.x, strlen(brserver.x));
     COPY(snmp_version);
     COPY(securelevel);
@@ -783,14 +801,10 @@ userinfo_again:
     COPY(username);
     COPY(password);
 #undef COPY
+end:
+    set_nonline_tty();
     return CLI_OK;
 err:
-    ZERO(snmp_version);
-    ZERO(securelevel);
-    ZERO(auth_type);
-    ZERO(username);
-    ZERO(password);
-#undef ZERO
     set_nonline_tty();
     return CLI_ERROR;
 }
