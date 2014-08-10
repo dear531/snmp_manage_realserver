@@ -16,6 +16,7 @@
 #include "libhealthcheck.h"
 #include "libvcenter/libvcenter.h"
 #include "common/dependence.h"
+#include "loadbalance/snmpwalk.h"
 
 
 #include "check/check.h"
@@ -678,12 +679,16 @@ static int realserver_show_for_normal(struct rserver *rserver)
 
 	return CLI_OK;
 }
+
 static int set_snmp(struct rserver *rserver)
 {
+    /* be used to temporary save of set */
     struct rserver brserver;
     int     i, j;
+    /* ever input */
     char    tmp_buf[32];
     int     ret;
+    /* pattern for snmp contain */
     struct snmp_promty {
         char *promty;
         char *option[3];
@@ -697,87 +702,99 @@ static int set_snmp(struct rserver *rserver)
 
     if (NULL == rserver)
             goto err;
-#define ZERO(x) memset(brserver.x, 0, sizeof(brserver.x))
-    ZERO(snmp_version);
-    ZERO(securelevel);
-    ZERO(auth_type);
-    ZERO(username);
-    ZERO(password);
-#undef ZERO
 reinput:
+    /* whenever before set clean argument */
+#define BZERO(x) memset(brserver.x, 0, sizeof(brserver.x))
+    BZERO(snmp_version);
+    BZERO(securelevel);
+    BZERO(auth_type);
+    BZERO(username);
+    BZERO(password);
+#undef BZERO
+    /* start show myself input character on standard */
     set_normal_tty();
     for (i = 0; i < sizeof(promty) / sizeof(*promty); i++) {
 again:
-            fprintf(stdout, "<%s>:",
-                    promty[i].promty);
-            for (j = 0; j < promty[i].num; j++)
-                if (0 == j)
-                    fprintf(stdout, "[%s|", promty[i].option[j]);
-                else if (promty[i].num - 1 == j)
-                    fprintf(stdout, "%s]\n", promty[i].option[j]);
-                else
-                    fprintf(stdout, "%s|", promty[i].option[j]);
-            fprintf(stdout, "input num[1-%d] or 'q' exit snmp set:",
-                    promty[i].num);
-            memset(tmp_buf, 0x00, sizeof(tmp_buf));
-            scanf("%s", tmp_buf);
-            if (memcmp(tmp_buf, "q", sizeof("q")) == 0) {
-                goto err;
-            } else if ((ret = strtol(tmp_buf, NULL, 10)) < 1
-                || ret > promty[i].num
-                || strlen(tmp_buf) == 0) {
-                fprintf(stdout, "not range\n");
-                goto again;
-            }
-            /* up to num set argument */
-            switch (i) {
-                case 0:
-                    /* set version */
-                    sprintf(brserver.snmp_version, "%s", promty[i].option[ret - 1]);
-                    fprintf(stdout, "snmp version :v%s\n", brserver.snmp_version);
-                    break;
-                case 1:
-                    /* set securelevel */
-                    sprintf(brserver.securelevel, "%s", promty[i].option[ret - 1]);
-                    fprintf(stdout, "snmp securelevel :%s\n", brserver.securelevel);
-                    break;
-                case 2:
-                    /* set authProtocol */
-                    sprintf(brserver.auth_type, "%s", promty[i].option[ret - 1]);
-                    fprintf(stdout, "snmp auth type :%s\n", brserver.auth_type);
-                    break;
-                default:
-                       goto err;
-            }
+        /* promty info */
+        fprintf(stdout, "<%s>:", promty[i].promty);
+        for (j = 0; j < promty[i].num; j++)
+            if (0 == j)
+                fprintf(stdout, "[%s|", promty[i].option[j]);
+            else if (promty[i].num - 1 == j)
+                fprintf(stdout, "%s]\n", promty[i].option[j]);
+            else
+                fprintf(stdout, "%s|", promty[i].option[j]);
+        fprintf(stdout, "input num[1-%d] or 'q' exit snmp set:", 
+                promty[i].num);
+        /* user input */
+        memset(tmp_buf, 0x00, sizeof(tmp_buf));
+        scanf("%s", tmp_buf);
+        if (memcmp(tmp_buf, "q", sizeof("q")) == 0) {
+            /* stop input, exit */
+            goto err;
+        } else if ((ret = strtol(tmp_buf, NULL, 10)) < 1
+            /* over range, try again */
+            || ret > promty[i].num
+            || strlen(tmp_buf) == 0) {
+            fprintf(stdout, "not range\n");
+            goto again;
+        }
+        /* up to num set argument */
+        switch (i) {
+            case 0:
+                /* set version */
+                sprintf(brserver.snmp_version, "%s", promty[i].option[ret - 1]);
+                fprintf(stdout, "snmp version :v%s\n", brserver.snmp_version);
+                break;
+            case 1:
+                /* set securelevel */
+                sprintf(brserver.securelevel, "%s", promty[i].option[ret - 1]);
+                fprintf(stdout, "snmp securelevel :%s\n", brserver.securelevel);
+                break;
+            case 2:
+                /* set authProtocol */
+                sprintf(brserver.auth_type, "%s", promty[i].option[ret - 1]);
+                fprintf(stdout, "snmp auth type :%s\n", brserver.auth_type);
+                break;
+            default:
+                   goto err;
+        }
     }
+    /* input username and password */
     for (i = 0;
         memcmp(brserver.snmp_version, "3", sizeof("3")) == 0 && i < sizeof(userinfo) / sizeof(*userinfo);
         i++) {
 userinfo_again:
         fprintf(stdout, "%s:", userinfo[i]);
+        /* if password then close show standard */
         if (memcmp(userinfo[i], "password", sizeof("password")) == 0)
             set_nonline_tty();
+        /* input data */
         memset(tmp_buf, 0x00, sizeof(tmp_buf));
         scanf("%s", tmp_buf);
+        /* check input */
         if (strlen(tmp_buf) == 0) {
             fprintf(stdout, "%s too sort\n", userinfo[i]);
             goto userinfo_again;
         }
         switch (i) {
             case 0:
+                /* set username */
                 memcpy(brserver.username, tmp_buf, strlen(tmp_buf));
                 break;
             case 1:
+                /* set password */
                 memcpy(brserver.password, tmp_buf, strlen(tmp_buf));
                 break;
             default:
-                break;
+                goto err;
         }
+        /* end input start show of standard */
         if (memcmp(userinfo[i], "password", sizeof("password")) == 0)
             set_normal_tty();
     }
-operat_again:
-    fprintf(stdout, "\n[O]verwrite old/[Q]uit give up new/[R]e input:");
+rechoise:
+    fprintf(stdout, "\n[O]verwrite old/[Q]uit give up new/[R]e input [o/q/r]:");
     memset(tmp_buf, 0x00, sizeof(tmp_buf));
     scanf("%s", tmp_buf);
     switch (tmp_buf[0]) {
@@ -791,10 +808,19 @@ operat_again:
         case 'r':
             goto reinput;
         default:
-            goto operat_again;
+            goto rechoise;
     }
 overwrite:
-#define COPY(x) memcpy(rserver->x,brserver.x, strlen(brserver.x));
+    /* clean old data of real server */
+#define RZERO(x) memset(rserver->x, 0, sizeof(rserver->x))
+    RZERO(snmp_version);
+    RZERO(securelevel);
+    RZERO(auth_type);
+    RZERO(username);
+    RZERO(password);
+#undef RZERO
+    /* set new data of real server */
+#define COPY(x) memcpy(rserver->x, brserver.x, strlen(brserver.x));
     COPY(snmp_version);
     COPY(securelevel);
     COPY(auth_type);
@@ -802,11 +828,30 @@ overwrite:
     COPY(password);
 #undef COPY
 end:
+    if (memcmp(rserver->snmp_enable, "on", sizeof("on")) != 0) {
+        memcpy(rserver->snmp_enable, "on", sizeof("on"));
+    }
+    /* before exit restore partten standard */
     set_nonline_tty();
     return CLI_OK;
 err:
+    /* before exit restore partten standard */
     set_nonline_tty();
     return CLI_ERROR;
+}
+
+static int check_snmp(struct rserver *rserver)
+{
+
+    char *snmpargv[] = {"snmpwalk", "-v", "3", "-l", "authNoPriv",
+     "-u", "zhangliuying", "-a", "MD5", "-A", "zhangliuying",
+     "192.168.12.78"
+    };
+    char *mibargv[] = {
+     ".1.3.6.1.4.1.99999.16", ".1.3.6.1.4.1.99999.15"
+    };
+    mibs_snmpwalk(sizeof(snmpargv) / sizeof(*snmpargv), snmpargv, sizeof(mibargv) / sizeof(*mibargv), mibargv, SNMP_SHOW);
+    return CLI_OK;
 }
 
 static int _realserver_config_modify(struct cli_def *cli, char *command, char *argv[], int argc, char *poolname, char *rsaddr)
@@ -865,11 +910,8 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
 				RSERVER_SET_VALUE(rserver->rscenter, argv[0]);
 			} else if (strncmp(command, "vmdatacenter", 8) == 0) {
 				RSERVER_SET_VALUE(rserver->vmdatacenter, argv[0]);
-			} else if (strncmp(command, "snmp off", 8) == 0) {
-                memcpy(rserver->snmp_enable, "off", sizeof("off"));
-			} else if (strncmp(command, "snmp on", 7) == 0) {
-                fprintf(stdout, "fixme:\n");
-                memcpy(rserver->snmp_enable, "on", sizeof("on"));
+			} else if (strncmp(command, "snmp check", 10) == 0) {
+                check_snmp(rserver);
 			} else if (strncmp(command, "snmp set", 8) == 0) {
                 set_snmp(rserver);
 			}
@@ -1072,10 +1114,7 @@ static int realserver_set_command(struct cli_def *cli, struct cli_command *paren
 	p = cli_register_command(cli, t, "snmp", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_SNMP);
 
-	c = cli_register_command(cli, p, "off", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
-
-	c = cli_register_command(cli, p, "on", realserver_config_modify,
+	c = cli_register_command(cli, p, "check", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
 
 	c = cli_register_command(cli, p, "set", realserver_config_modify,
