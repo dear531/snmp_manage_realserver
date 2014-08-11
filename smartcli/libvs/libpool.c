@@ -839,16 +839,35 @@ err:
     set_nonline_tty();
     return CLI_ERROR;
 }
-
+#if 0
+static int search_rsip(struct rserver *rserver)
+{
+    return ;
+}
+#endif
 static int check_snmp(struct rserver *rserver)
 {
-
-    char *snmpargv[] = {"snmpwalk", "-v", "3", "-l", "authNoPriv",
-     "-u", "zhangliuying", "-a", "MD5", "-A", "zhangliuying",
-     "192.168.12.78"
+    char *snmpargv[] = {"snmpwalk", "-v", rserver->snmp_version, "-l", rserver->securelevel,
+     "-u", rserver->username, "-a", rserver->auth_type, "-A", rserver->password, NULL,
     };
+    int i;
+
+    char address[BUFSIZ];
+    char *p = NULL;
+    char ip[3 *4 + 3 + 1];
+    inet_sockaddr2address(&rserver->address, address);
+    if (strlen(address) != 0)
+        p = strchr(address, ':');
+    memset(ip, 0x00, sizeof(ip));
+    memcpy(ip, address, p - address);
+    snmpargv[sizeof(snmpargv) / sizeof(*snmpargv) - 1] = ip;
+
+    for (i = 0; i < sizeof(snmpargv) / sizeof(*snmpargv); i++) {
+        fprintf(stdout, "snmpargv[%d]:%s\n", i, snmpargv[i]);
+    }
+
     char *mibargv[] = {
-     ".1.3.6.1.4.1.99999.16", ".1.3.6.1.4.1.99999.15"
+        ".1.3.6.1.4.1.99999.15", ".1.3.6.1.4.1.99999.16",
     };
     mibs_snmpwalk(sizeof(snmpargv) / sizeof(*snmpargv), snmpargv, sizeof(mibargv) / sizeof(*mibargv), mibargv, SNMP_SHOW);
     return CLI_OK;
