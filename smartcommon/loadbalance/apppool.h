@@ -48,7 +48,7 @@ struct rserver {
 		char name[32];			/* snmp name */
 		char snmp_enable[32];	/* on, off */
 		char community[32];		/* community */
-		char auth_type[32];		/* SNMPv3 auth type, MD5 or SHA1 */
+		char authProtocol[32];		/* SNMPv3 auth type, MD5 or SHA1 */
 		char securelevel[32];	/* noAuthNoPriv|authNoPriv|authPriv */
 		char trap_enable[32];   /* control snmptrap */
 		char trap_manager[32];  /* manager ip */

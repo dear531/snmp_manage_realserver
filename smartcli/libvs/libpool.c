@@ -316,7 +316,7 @@ static int do_realserver_config_modify(char *poolname, struct rserver *rserver)
 	/* community */
 	RSERVER_SET_VALUE("community", rserver->community);
 	/* SNMPv3 auth type, MD5 or SHA1 */
-	RSERVER_SET_VALUE("auth_type", rserver->auth_type);
+	RSERVER_SET_VALUE("authProtocol", rserver->authProtocol);
 	/* noAuthNoPriv|authNoPriv|authPriv */
 	RSERVER_SET_VALUE("securelevel", rserver->securelevel);
 	/* control snmptrap */
@@ -532,9 +532,9 @@ static char * get_rserver_desc(struct rserver *rserver, char *desc)
 				desc, rserver->community);
 	}
 	/* SNMPv3 auth type, MD5 or SHA1 */
-	if (rserver->auth_type[0] != 0) {
-		sprintf(desc, "%sauth_type=%s,",				\
-				desc, rserver->auth_type);
+	if (rserver->authProtocol[0] != 0) {
+		sprintf(desc, "%sauthProtocol=%s,",				\
+				desc, rserver->authProtocol);
 	}
 	/* noAuthNoPriv|authNoPriv|authPriv */
 	if (rserver->securelevel[0] != 0) {
@@ -707,7 +707,7 @@ reinput:
 #define BZERO(x) memset(brserver.x, 0, sizeof(brserver.x))
     BZERO(snmp_version);
     BZERO(securelevel);
-    BZERO(auth_type);
+    BZERO(authProtocol);
     BZERO(username);
     BZERO(password);
 #undef BZERO
@@ -753,8 +753,8 @@ again:
                 break;
             case 2:
                 /* set authProtocol */
-                sprintf(brserver.auth_type, "%s", promty[i].option[ret - 1]);
-                fprintf(stdout, "snmp auth type :%s\n", brserver.auth_type);
+                sprintf(brserver.authProtocol, "%s", promty[i].option[ret - 1]);
+                fprintf(stdout, "snmp auth type :%s\n", brserver.authProtocol);
                 break;
             default:
                    goto err;
@@ -815,7 +815,7 @@ overwrite:
 #define RZERO(x) memset(rserver->x, 0, sizeof(rserver->x))
     RZERO(snmp_version);
     RZERO(securelevel);
-    RZERO(auth_type);
+    RZERO(authProtocol);
     RZERO(username);
     RZERO(password);
 #undef RZERO
@@ -823,7 +823,7 @@ overwrite:
 #define COPY(x) memcpy(rserver->x, brserver.x, strlen(brserver.x));
     COPY(snmp_version);
     COPY(securelevel);
-    COPY(auth_type);
+    COPY(authProtocol);
     COPY(username);
     COPY(password);
 #undef COPY
@@ -848,7 +848,7 @@ static int search_rsip(struct rserver *rserver)
 static int check_snmp(struct rserver *rserver)
 {
     char *snmpargv[] = {"snmpwalk", "-v", rserver->snmp_version, "-l", rserver->securelevel,
-     "-u", rserver->username, "-a", rserver->auth_type, "-A", rserver->password, NULL,
+     "-u", rserver->username, "-a", rserver->authProtocol, "-A", rserver->password, NULL,
     };
     int i;
 
@@ -940,9 +940,9 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
                     RSERVER_SET_VALUE(rserver->securelevel, "authNoPriv");
                 else
                     fprintf(stdout, "securelevel needed by snmp version 3\n");
-			} else if (strncmp(command, "snmp authProtocol", 8) == 0) {
+			} else if (strncmp(command, "snmp authProtocol", 18) == 0) {
                 if (memcmp(rserver->securelevel, "authNoPriv", sizeof("authNoPriv")) == 0)
-                    RSERVER_SET_VALUE(rserver->auth_type, argv[0]);
+                    RSERVER_SET_VALUE(rserver->authProtocol, argv[0]);
                 else
                     fprintf(stdout, "authprotocol needed by v3 and securelevel auth\n");
 			} else if (strncmp(command, "snmp set", 8) == 0) {
