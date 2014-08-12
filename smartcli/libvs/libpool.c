@@ -929,12 +929,27 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
 				RSERVER_SET_VALUE(rserver->rscenter, argv[0]);
 			} else if (strncmp(command, "vmdatacenter", 8) == 0) {
 				RSERVER_SET_VALUE(rserver->vmdatacenter, argv[0]);
-			} else if (strncmp(command, "snmp check", 10) == 0) {
-                check_snmp(rserver);
+			} else if (strncmp(command, "snmp version", 12) == 0) {
+                if (argc == 0)
+                   memcpy(rserver->snmp_version, "3", sizeof("3"));
+                else
+                    RSERVER_SET_VALUE(rserver->snmp_version, argv[0]);
+			} else if (strncmp(command, "snmp securelevel authNoPriv", 29) == 0) {
+            /* at present only support authNoPriv, other later will be complete */
+                if (memcmp(rserver->snmp_version, "3", sizeof("3")) == 0)
+                    RSERVER_SET_VALUE(rserver->securelevel, "authNoPriv");
+                else
+                    fprintf(stdout, "securelevel needed by snmp version 3\n");
+			} else if (strncmp(command, "snmp authProtocol", 8) == 0) {
+                if (memcmp(rserver->securelevel, "authNoPriv", sizeof("authNoPriv")) == 0)
+                    RSERVER_SET_VALUE(rserver->auth_type, argv[0]);
+                else
+                    fprintf(stdout, "authprotocol needed by v3 and securelevel auth\n");
 			} else if (strncmp(command, "snmp set", 8) == 0) {
                 set_snmp(rserver);
+			} else if (strncmp(command, "snmp check", 10) == 0) {
+                check_snmp(rserver);
 			}
-
 
 			do_realserver_config_modify(poolname, rserver);
 #undef RSERVER_SET_VALUE
@@ -1116,11 +1131,27 @@ static int realserver_set_default(struct cli_def *cli, char *command, char *argv
 	return CLI_OK;
 }
 
-
+static int check_snmp_version(struct cli_def *cli, struct cli_command *c, char *value)
+{
+    if (memcmp(value, "1", sizeof("1")) == 0
+    || memcmp(value, "2c", sizeof("2c")) == 0
+    || memcmp(value, "3", sizeof("3")) == 0) {
+        return CLI_OK;
+    }
+    return CLI_ERROR;
+}
+static int check_snmp_authProtocol(struct cli_def *cli, struct cli_command *c, char *value)
+{
+    if (strncasecmp(value, "md5", sizeof("md5")) == 0
+        ||strncasecmp(value, "sha", sizeof("sha")) == 0) {
+        return CLI_OK;
+    }
+    return CLI_ERROR;
+}
 
 static int realserver_set_command(struct cli_def *cli, struct cli_command *parent)
 {
-	struct cli_command *t, *p, *c;
+	struct cli_command *t, *p, *c, *d;
 	t = cli_register_command(cli, parent, "realserver", realserver_set_default, PRIVILEGE_PRIVILEGED,
 			MODE_FOLDER, LIBCLI_POOL_SET_SET_REALSERVER);
 	cli_command_add_argument(t, "<ip:port>", check_address_port);
@@ -1138,6 +1169,20 @@ static int realserver_set_command(struct cli_def *cli, struct cli_command *paren
 
 	c = cli_register_command(cli, p, "set", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+
+	c = cli_register_command(cli, p, "version", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+	cli_command_add_argument(c, "2c\t3(default)", check_snmp_version);
+
+	c = cli_register_command(cli, p, "securelevel", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+
+	d = cli_register_command(cli, c, "authNoPriv", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+
+	c = cli_register_command(cli, p, "authProtocol", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+	cli_command_add_argument(c, "md5\tsha", check_snmp_authProtocol);
 
 	/** limit maxconn/maxreq/bandwidth <value> **/
 	p = cli_register_command(cli, t, "limit", realserver_config_modify,

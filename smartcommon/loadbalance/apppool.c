@@ -596,10 +596,8 @@ static int realserver_set(struct list_head *list, const char *name,
 			set_value(token, rserver->community);
 		} else if (!strncasecmp(token, "auth_type=", 10)) {
 			set_value(token, rserver->auth_type);
-			strcpy(rserver->auth_type, "MD5");
 		} else if (!strncasecmp(token, "securelevel=", 12)) {
 			set_value(token, rserver->securelevel);
-			strcpy(rserver->securelevel, "authNoPriv");
 		} else if (!strncasecmp(token, "trap_enable=", 12)) {
 			set_value(token, rserver->trap_enable);
 		} else if (!strncasecmp(token, "trap_manager=", 13)) {

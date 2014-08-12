@@ -1403,10 +1403,6 @@ static int vm_set_common_data(struct rserver *rserver, int action, char *buff)
 	RSERVER_SET_VALUE("enable", "on");
 	RSERVER_SET_VALUE("rscenter", rserver->rscenter);
 	RSERVER_SET_VALUE("vmdatacenter", rserver->vmdatacenter);
-#if 1
-	/* FIXME: incomplete implement, only version for test */
-	RSERVER_SET_VALUE("snmp_version", rserver->snmp_version);
-#endif
 
 	/** action = 1添加rserver, action = 0关闭rserver **/
 	/* 自动关闭，设置state=disabling */
