@@ -283,6 +283,8 @@ static int realserver_analyse(xmlNodePtr pnode, struct list_head *list)
 	m_analyse_common(pnode, realserver, username);
 	/* authencation password */
 	m_analyse_common(pnode, realserver, password);
+	m_analyse_common(pnode, realserver, cpu);
+	m_analyse_common(pnode, realserver, memory);
 
 	return 0;
 }
@@ -374,6 +376,8 @@ static int realserver_restore(xmlNodePtr pnode, struct list_head *list)
 	m_restore_common(pnode, realserver, username);
 	/* authencation password */
 	m_restore_common(pnode, realserver, password);
+	m_restore_common(pnode, realserver, cpu);
+	m_restore_common(pnode, realserver, memory);
 
 	return 0;
 }
@@ -495,7 +499,7 @@ static int realserver_set(struct list_head *list, const char *name,
 	ZERO(rscenter);
 	ZERO(vmname);
 	ZERO(vmdatacenter);
-#if 1
+
 	ZERO(snmp_check);	/* recode state flag:vilad/invilad */
 	ZERO(snmp_version);	/* snmp version of realserver */
 	ZERO(name);      	/* snmp name */
@@ -512,7 +516,9 @@ static int realserver_set(struct list_head *list, const char *name,
 	ZERO(trap_v3_privacy_password);	/* privacy password */
 	ZERO(username);		/* authencation usm_name */
 	ZERO(password);		/* authencation password */
-#endif
+	ZERO(cpu);
+	ZERO(memory);
+
 #undef ZERO
 
 
@@ -580,14 +586,10 @@ static int realserver_set(struct list_head *list, const char *name,
 					vcenter_vm_search(rserver->rscenter, rserver->vmdatacenter, ip, rserver->vmname);
 				}
 			}
-#if 1
 		} else if (!strncasecmp(token, "snmp_check=", 10)) {
 			set_value(token, rserver->snmp_check);
 		} else if (!strncasecmp(token, "snmp_version=", 13)) {
 			set_value(token, rserver->snmp_version);
-			if (strcmp(rserver->snmp_version, "0") == 0) {
-				strcpy(rserver->snmp_version, "3");
-			}
 		} else if (!strncasecmp(token, "name=", 5)) {
 			set_value(token, rserver->name);
 		} else if (!strncasecmp(token, "snmp_enable=", 12)) {
@@ -616,7 +618,10 @@ static int realserver_set(struct list_head *list, const char *name,
 			set_value(token, rserver->username);
 		} else if (!strncasecmp(token, "password=", 9)) {
 			set_value(token, rserver->password);
-#endif
+		} else if (!strncasecmp(token, "cpu=", 4)) {
+			set_value(token, rserver->cpu);
+		} else if (!strncasecmp(token, "memory=", 7)) {
+			set_value(token, rserver->memory);
 		}
 
 		token = strtok(NULL, ",");

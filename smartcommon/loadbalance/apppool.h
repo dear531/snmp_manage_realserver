@@ -59,6 +59,8 @@ struct rserver {
 		char trap_v3_privacy_password[32];	/* privacy password */
 		char username[64];		/* authencation usm_name */
 		char password[64];		/* authencation password */
+		char cpu[32];			/* percent of cpu free */
+		char memory[32];		/* percent of memory free */
 	};
 };
 

@@ -304,7 +304,7 @@ static int do_realserver_config_modify(char *poolname, struct rserver *rserver)
 	RSERVER_SET_VALUE("bandwidth", rserver->bandwidth);
 	RSERVER_SET_VALUE("healthcheck", rserver->healthcheck);
 	RSERVER_SET_VALUE("enable", rserver->enable);
-#if 1
+
 	/* check snmp state:vilad,in- */
 	RSERVER_SET_VALUE("snmp_check", rserver->snmp_check);
 	/* snmp version of realserver */
@@ -337,7 +337,8 @@ static int do_realserver_config_modify(char *poolname, struct rserver *rserver)
 	RSERVER_SET_VALUE("username", rserver->username);
 	/* authencation password */
 	RSERVER_SET_VALUE("password", rserver->password);
-#endif
+	RSERVER_SET_VALUE("cpu", rserver->cpu);
+	RSERVER_SET_VALUE("memory", rserver->memory);
 
 	/* get pool */
 	LIST_HEAD(pool_head);
@@ -592,6 +593,15 @@ static char * get_rserver_desc(struct rserver *rserver, char *desc)
 				desc, rserver->password);
 	}
 #endif
+	if (rserver->cpu[0] != 0) {
+		sprintf(desc, "%scpu=%s,",					    \
+				desc, rserver->cpu);
+	}
+
+	if (rserver->memory[0] != 0) {
+		sprintf(desc, "%smemory=%s,",					\
+				desc, rserver->memory);
+	}
 
 	return desc;
 }
@@ -741,7 +751,7 @@ static int check_snmp(struct rserver *rserver)
     char *snmpargv[] = {"snmpwalk", "-v", rserver->snmp_version, "-l", rserver->securelevel,
      "-u", rserver->username, "-a", rserver->authProtocol, "-A", rserver->password, NULL,
     };
-    char ip[3 *4 + 3 + 1];
+    char ip[3 * 4 + 3 + 1];
 
     char *mibargv[] = {
         ".1.3.6.1.4.1.99999.15", ".1.3.6.1.4.1.99999.16",
@@ -835,6 +845,11 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
                 snmp_password(rserver);
 			} else if (strncmp(command, "snmp check", 10) == 0) {
                 check_snmp(rserver);
+			} else if (strncmp(command, "snmp cpu", 8) == 0) {
+                /* FIXME:cpu and memory snmp */
+				RSERVER_SET_VALUE(rserver->cpu, argc == 0 ? "" : argv[0]);
+			} else if (strncmp(command, "snmp memory", 11) == 0) {
+				RSERVER_SET_VALUE(rserver->memory, argc == 0 ? "" : argv[0]);
 			}
 
 			do_realserver_config_modify(poolname, rserver);
