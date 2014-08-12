@@ -814,21 +814,20 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
 			} else if (strncmp(command, "vmdatacenter", 8) == 0) {
 				RSERVER_SET_VALUE(rserver->vmdatacenter, argv[0]);
 			} else if (strncmp(command, "snmp version", 12) == 0) {
-                if (argc == 0)
-                   memcpy(rserver->snmp_version, "3", sizeof("3"));
-                else
-                    RSERVER_SET_VALUE(rserver->snmp_version, argv[0]);
+                    RSERVER_SET_VALUE(rserver->snmp_version, argc == 0 ? "3" : argv[0]);
 			} else if (strncmp(command, "snmp securelevel authNoPriv", 29) == 0) {
             /* at present only support authNoPriv, other later will be complete */
-                if (memcmp(rserver->snmp_version, "3", sizeof("3")) == 0)
-                    RSERVER_SET_VALUE(rserver->securelevel, "authNoPriv");
-                else
+                if (memcmp(rserver->snmp_version, "3", sizeof("3")) == 0) {
+                    RSERVER_SET_VALUE(rserver->securelevel, argc == 0 ? "authNoPriv" : argv[0]);
+                } else {
                     fprintf(stdout, "securelevel needed by snmp version 3\n");
+                }
 			} else if (strncmp(command, "snmp authProtocol", 18) == 0) {
-                if (memcmp(rserver->securelevel, "authNoPriv", sizeof("authNoPriv")) == 0)
-                    RSERVER_SET_VALUE(rserver->authProtocol, argv[0]);
-                else
+                if (memcmp(rserver->securelevel, "authNoPriv", sizeof("authNoPriv")) == 0) {
+                    RSERVER_SET_VALUE(rserver->authProtocol, argc == 0 ? "md5" : argv[0]);
+                } else {
                     fprintf(stdout, "authprotocol needed by v3 and securelevel auth\n");
+                }
 			} else if (strncmp(command, "snmp user", 9) == 0) {
                 snmp_user(rserver);
                 snmp_password(rserver);
