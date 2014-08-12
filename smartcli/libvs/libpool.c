@@ -741,12 +741,7 @@ static int check_snmp(struct rserver *rserver)
     char *snmpargv[] = {"snmpwalk", "-v", rserver->snmp_version, "-l", rserver->securelevel,
      "-u", rserver->username, "-a", rserver->authProtocol, "-A", rserver->password, NULL,
     };
-    int i;
     char ip[3 *4 + 3 + 1];
-
-    for (i = 0; i < sizeof(snmpargv) / sizeof(*snmpargv); i++) {
-        fprintf(stdout, "snmpargv[%d]:%s\n", i, snmpargv[i]);
-    }
 
     char *mibargv[] = {
         ".1.3.6.1.4.1.99999.15", ".1.3.6.1.4.1.99999.16",
