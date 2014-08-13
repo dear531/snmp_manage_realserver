@@ -401,6 +401,15 @@ static int check_weight_range(struct cli_def *cli, struct cli_command *c, char *
 	return CLI_OK;
 }
 
+static int check_cpu_mem_range(struct cli_def *cli, struct cli_command *c, char *value)
+{
+	if (check_num_range(cli, c, 1, 100, value) != CLI_OK) {
+		printf("range:<1-100>\n");
+		return CLI_ERROR;
+	}
+	return CLI_OK;
+}
+
 static int apppool_queue_create(struct list_head *queue, const char *name)
 {
 	return module_get_queue(queue, "apppool", name);
@@ -846,10 +855,13 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
 			} else if (strncmp(command, "snmp check", 10) == 0) {
                 check_snmp(rserver);
 			} else if (strncmp(command, "snmp cpu", 8) == 0) {
-                /* FIXME:cpu and memory snmp */
-				RSERVER_SET_VALUE(rserver->cpu, argc == 0 ? "" : argv[0]);
+                RSERVER_SET_VALUE(rserver->cpu, argc == 0 ? "" : argv[0]);
+                if (strlen(rserver->cpu) > 0)
+                    sprintf(rserver->memory, "%ld", 100 - strtol(argv[0], NULL, 10));
 			} else if (strncmp(command, "snmp memory", 11) == 0) {
 				RSERVER_SET_VALUE(rserver->memory, argc == 0 ? "" : argv[0]);
+                if (strlen(rserver->memory) > 0)
+                    sprintf(rserver->cpu, "%ld", 100 - strtol(argv[0], NULL, 10));
 			}
 
 			do_realserver_config_modify(poolname, rserver);
@@ -1088,9 +1100,14 @@ static int realserver_set_command(struct cli_def *cli, struct cli_command *paren
 	c = cli_register_command(cli, p, "password", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
 
-	c = cli_register_command(cli, p, "version", realserver_config_modify,
+	c = cli_register_command(cli, p, "cpu", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
-	cli_command_add_argument(c, "2c\t3(default)", check_snmp_version);
+	cli_command_add_argument(c, "<num:1-100>", check_cpu_mem_range);
+
+	c = cli_register_command(cli, p, "memory", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+	cli_command_add_argument(c, "<num>:1-100", check_cpu_mem_range);
+
 	/** limit maxconn/maxreq/bandwidth <value> **/
 	p = cli_register_command(cli, t, "limit", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT);
