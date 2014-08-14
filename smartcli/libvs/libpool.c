@@ -541,15 +541,17 @@ static char * get_rserver_desc(struct rserver *rserver, char *desc)
 		sprintf(desc, "%scommunity=%s,",				\
 				desc, rserver->community);
 	}
-	/* SNMPv3 auth type, MD5 or SHA1 */
-	if (rserver->authProtocol[0] != 0) {
-		sprintf(desc, "%sauthProtocol=%s,",				\
-				desc, rserver->authProtocol);
-	}
+
 	/* noAuthNoPriv|authNoPriv|authPriv */
 	if (rserver->securelevel[0] != 0) {
 		sprintf(desc, "%ssecurelevel=%s,",				\
 				desc, rserver->securelevel);
+	}
+
+	/* SNMPv3 auth type, MD5 or SHA1 */
+	if (rserver->authProtocol[0] != 0) {
+		sprintf(desc, "%sauthProtocol=%s,",				\
+				desc, rserver->authProtocol);
 	}
 	/* control snmptrap */
 	if (rserver->trap_enable[0] != 0) {
@@ -1046,9 +1048,13 @@ static int realserver_set_default(struct cli_def *cli, char *command, char *argv
 
 static int check_snmp_version(struct cli_def *cli, struct cli_command *c, char *value)
 {
+#if 0 /* current only support version 3 */
     if (memcmp(value, "1", sizeof("1")) == 0
     || memcmp(value, "2c", sizeof("2c")) == 0
     || memcmp(value, "3", sizeof("3")) == 0) {
+#else
+    if (memcmp(value, "3", sizeof("3")) == 0) {
+#endif
         return CLI_OK;
     }
     return CLI_ERROR;
@@ -1082,7 +1088,7 @@ static int realserver_set_command(struct cli_def *cli, struct cli_command *paren
 
 	c = cli_register_command(cli, p, "version", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
-	cli_command_add_argument(c, "2c\t3(default)", check_snmp_version);
+	cli_command_add_argument(c, "3(default)", check_snmp_version);
 
 	c = cli_register_command(cli, p, "securelevel", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
