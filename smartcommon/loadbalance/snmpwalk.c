@@ -98,13 +98,10 @@ static int snmp_show_flag = 0;
 /* hold row of table pdu */
 static int cpu_counter = 0;
 /* every cpu num user value percent */
-static float *num = NULL;
 static int 
 get_cpu_info(const u_char *buf)
 {
-	num = realloc(num, sizeof(*num) * (cpu_counter + 1));
-	if (NULL == num)
-		goto failure;
+	float single = 0.0;
 	/* 
 	 * SNMPv2-SMI::enterprises.99999.16.1.1.1 = STRING: "10:35:24 AM  CPU   %user   %nice    %sys %iowait
 	 * %irq   %soft  %steal   %idle    intr/s "
@@ -113,13 +110,9 @@ get_cpu_info(const u_char *buf)
 	 * ....
 	 * sscanf discast start several invalid value
 	 */
-	sscanf((char *)buf, "%*s %*s %*s %*s %*s %*s %f", num + cpu_counter);
+	sscanf((char *)buf, "%*s %*s %*s %*s %*s %*s %f", &single);
 	cpu_counter++;
-	return 0;
-failure:
-	if (NULL != num)
-		free(num);
-	return 1;
+	return (int)single;
 }
 
 static struct get_info cpu = {
@@ -128,11 +121,12 @@ static struct get_info cpu = {
 	/* cpu headle function */
 	.get_handle = get_cpu_info,
 };
-static struct{
+struct mem_info {
 	int used;
 	int total;
 	int free;
-}mem_info;
+};
+
 static int mem_counter = 0;
 enum mem_status
 {
@@ -143,6 +137,8 @@ enum mem_status
 
 static int get_mem_info(const u_char *buf)
 {
+
+	struct mem_info mem_info;
 	if (1 == mem_counter && NULL != buf) {
 	/* 
 	 * SNMPv2-SMI::enterprises.99999.15.1.1.1 = STRING: "             total       used       free     shared
@@ -153,12 +149,12 @@ static int get_mem_info(const u_char *buf)
 	 */
 		sscanf((char *)buf, "%*s %*s %*s %*s %d %d %d",
 			&mem_info.total, &mem_info.used, &mem_info.free);
-		return MEM_SECCESS;
+		return mem_info.used * 100 / mem_info.total;
 	} else if (1 == mem_counter) {
 		/* mem_counter == 1 && buf == NULL FAILURE */
-		return MEM_FAILRUE;
+		return -1;
 	} else {
-		return MEM_OTHER;
+		return -2;
 	}
 }
 static struct get_info mem = {
@@ -186,12 +182,13 @@ usage(void)
             "\t\t\t  t:  Display wall-clock time to complete the request\n");
 }
 
-static void
-snmp_get_and_print(netsnmp_session * ss, oid * theoid, size_t theoid_len, int (*b_global_get_info)(const u_char *buf))
+static int
+snmp_get_and_print(netsnmp_session * ss, oid * theoid, size_t theoid_len, int (*get_info_func)(const u_char *buf))
 {
     netsnmp_pdu    *pdu, *response;
     netsnmp_variable_list *vars;
     int             status;
+	int             ret = 0, tmp = 0;
 
     pdu = snmp_pdu_create(SNMP_MSG_GET);
     snmp_add_null_var(pdu, theoid, theoid_len);
@@ -216,15 +213,32 @@ snmp_get_and_print(netsnmp_session * ss, oid * theoid, size_t theoid_len, int (*
 /* flag for get infomartion show to standard output */
 					if (SNMP_SHOW == snmp_show_flag)
 						fprintf(stdout, "%s\n", buf);
-					b_global_get_info((const u_char *)buf);
+					tmp = get_info_func((const u_char *)buf);
+
+					if (tmp > 0 && ret >= 0)
+						ret += tmp;
+					else if (tmp < 0 && ret >= 0)
+						ret = tmp;
+
 					if (out_len > 0)
 						free(buf);
+
+					if (tmp < 0) {
+						if (response) {
+							snmp_free_pdu(response);
+						}
+						return tmp;
+					} else {
+						ret += tmp;
+					}
 #endif
         }
     }
     if (response) {
         snmp_free_pdu(response);
     }
+	return tmp;
+	return ret;
 }
 
 static void
@@ -272,7 +286,7 @@ optProc(int argc, char *const *argv, int opt)
 
 
 static int
-snmpwalk(int argc, char *argv[], int (*b_global_get_info)(const u_char *buf))
+snmpwalk(int argc, char *argv[], int (*get_info_func)(const u_char *buf))
 {
     netsnmp_session session, *ss;
     netsnmp_pdu    *pdu, *response;
@@ -288,6 +302,7 @@ snmpwalk(int argc, char *argv[], int (*b_global_get_info)(const u_char *buf))
     int             check;
     int             exitval = 0;
     struct timeval  tv1, tv2;
+	int             tmp = 0, ret = 0;
 
     netsnmp_ds_register_config(ASN_BOOLEAN, "snmpwalk", "includeRequested",
 			       NETSNMP_DS_APPLICATION_ID, 
@@ -314,10 +329,10 @@ snmpwalk(int argc, char *argv[], int (*b_global_get_info)(const u_char *buf))
      */
     switch (arg = snmp_parse_args(argc, argv, &session, "C:", optProc)) {
     case -2:
-		return 1;
+		return -3;
     case -1:
         usage();
-		return 2;
+		return -4;
     default:
         break;
     }
@@ -333,7 +348,7 @@ snmpwalk(int argc, char *argv[], int (*b_global_get_info)(const u_char *buf))
         if (snmp_parse_oid(argv[arg], root, &rootlen) == NULL) {
 			if (SNMP_SHOW == snmp_show_flag)
 				snmp_perror(argv[arg]);
-			return 2;
+			return -4;
         }
     } else {
         /*
@@ -356,7 +371,7 @@ snmpwalk(int argc, char *argv[], int (*b_global_get_info)(const u_char *buf))
 		if (SNMP_SHOW == snmp_show_flag)
 			snmp_sess_perror("snmpwalk", &session);
         SOCK_CLEANUP;
-		return 2;
+		return -4;
     }
 
     /*
@@ -371,7 +386,11 @@ snmpwalk(int argc, char *argv[], int (*b_global_get_info)(const u_char *buf))
         !netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
                         NETSNMP_DS_WALK_DONT_CHECK_LEXICOGRAPHIC);
     if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_WALK_INCLUDE_REQUESTED)) {
-        snmp_get_and_print(ss, root, rootlen, b_global_get_info);
+        tmp = snmp_get_and_print(ss, root, rootlen, get_info_func);
+		if (tmp > 0 && ret >= 0)
+			ret += tmp;
+		else if (tmp < 0 && ret >= 0)
+			ret = tmp;
     }
 
     if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
@@ -419,7 +438,11 @@ snmpwalk(int argc, char *argv[], int (*b_global_get_info)(const u_char *buf))
 							vars->name, vars->name_length, vars);
 					if (SNMP_SHOW == snmp_show_flag)
 						fprintf(stdout, "%s\n", buf);
-					b_global_get_info((const u_char *)buf);
+					tmp = get_info_func((const u_char *)buf);
+					if (tmp > 0 && ret >= 0)
+						ret += tmp;
+					else if (tmp < 0 && ret >= 0)
+						ret = tmp;
 					if (out_len > 0)
 						free(buf);
 #endif
@@ -443,7 +466,7 @@ snmpwalk(int argc, char *argv[], int (*b_global_get_info)(const u_char *buf))
                             fprintf(stderr, "\n");
 					}
                             running = 0;
-                            exitval = 1;
+                            exitval = -1;
                         }
                         memmove((char *) name, (char *) vars->name,
                                 vars->name_length * sizeof(oid));
@@ -479,7 +502,7 @@ snmpwalk(int argc, char *argv[], int (*b_global_get_info)(const u_char *buf))
 											 vars->name_length);
 							fprintf(stderr, "\n");
 						}
-						exitval = 2;
+						exitval = -2;
 					}
 				}
             }
@@ -490,12 +513,12 @@ snmpwalk(int argc, char *argv[], int (*b_global_get_info)(const u_char *buf))
                     session.peername);
 		}
             running = 0;
-            exitval = 1;
+            exitval = -1;
         } else {                /* status == STAT_ERROR */
 			if (SNMP_SHOW == snmp_show_flag)
 				snmp_sess_perror("snmpwalk", ss);
             running = 0;
-            exitval = 1;
+            exitval = -1;
         }
         if (response)
             snmp_free_pdu(response);
@@ -511,7 +534,11 @@ snmpwalk(int argc, char *argv[], int (*b_global_get_info)(const u_char *buf))
          * for get measure. 
          */
         if (!netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_WALK_DONT_GET_REQUESTED)) {
-            snmp_get_and_print(ss, root, rootlen, b_global_get_info);
+            tmp = snmp_get_and_print(ss, root, rootlen, get_info_func);
+			if (tmp > 0 && ret >= 0)
+				ret += tmp;
+			else if (tmp < 0 && ret >= 0)
+				ret = tmp;
         }
     }
     snmp_close(ss);
@@ -530,7 +557,10 @@ snmpwalk(int argc, char *argv[], int (*b_global_get_info)(const u_char *buf))
     }
 
     SOCK_CLEANUP;
-    return exitval;
+	if (exitval != 0)
+		return exitval;
+	else 
+		return ret;
 }
 
 static int
@@ -544,7 +574,7 @@ walk_info_operation(int argc, char *argv[])
 	 */
 		cpu_counter = 0;
 		ret = snmpwalk(argc, argv, cpu.get_handle);
-		if (ret > 0)
+		if (ret < 0)
 			return ret;
 	} else if (memcmp(mem.oid, argv[argc - 1], strlen(mem.oid) + 1) == 0) {
 	/*
@@ -553,7 +583,7 @@ walk_info_operation(int argc, char *argv[])
 	 */
 		mem_counter = 0;
 		ret = snmpwalk(argc, argv, mem.get_handle);
-		if (ret > 0)
+		if (ret < 0)
 			return ret;
 	}
 	return ret;
@@ -598,7 +628,7 @@ mibs_snmpwalk(int snmp_argc, char *snmp_argv[], int mib_argc, char *mib_argv[], 
 		/* call operation function get info */
 		ret = walk_info_operation(snmp_argc + 1, heap_argv);
 		heap_argv[snmp_argc] = NULL;
-		if (ret > 0)
+		if (ret < 0)
 			goto flaid;
 	}
 flaid:
