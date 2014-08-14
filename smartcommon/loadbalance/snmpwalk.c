@@ -542,6 +542,7 @@ walk_info_operation(int argc, char *argv[])
 	 * snmpwalk -v 3 -l authNoPriv -u usm_user -a MD5(or SHA) -A authenpassword
 	 * realipaddrs .1.3.6.1.4.1.99999.16
 	 */
+		cpu_counter = 0;
 		ret = snmpwalk(argc, argv, cpu.get_handle);
 		if (ret > 0)
 			return ret;
@@ -550,6 +551,7 @@ walk_info_operation(int argc, char *argv[])
 	 * snmpwalk -v 3 -l authNoPriv -u usm_user -a MD5(or SHA) -A authenpassword
 	 * realipaddrs .1.3.6.1.4.1.99999.15
 	 */
+		mem_counter = 0;
 		ret = snmpwalk(argc, argv, mem.get_handle);
 		if (ret > 0)
 			return ret;
