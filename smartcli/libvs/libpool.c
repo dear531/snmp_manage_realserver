@@ -742,42 +742,6 @@ again:
 }
 #undef ZERO
 
-static char *search_rsip(const struct sockaddr_storage *addr,char *ip)
-{
-    char address[BUFSIZ];
-    char *p = NULL;
-    if (NULL == addr)
-        return NULL;
-    inet_sockaddr2address(addr, address);
-    if (strlen(address) != 0)
-        p = strchr(address, ':');
-    memset(ip, 0x00, sizeof(ip));
-    memcpy(ip, address, p - address);
-
-    return ip;
-}
-
-static int check_snmp(struct rserver *rserver)
-{
-    char *snmpargv[] = {"snmpwalk", "-v", rserver->snmp_version, "-l", rserver->securelevel,
-     "-u", rserver->username, "-a", rserver->authProtocol, "-A", rserver->password, NULL,
-    };
-    char ip[3 * 4 + 3 + 1];
-
-    char *mibargv[] = {
-        ".1.3.6.1.4.1.99999.15", ".1.3.6.1.4.1.99999.16",
-    };
-
-    search_rsip(&rserver->address, ip);
-    if (strlen(ip) == 0)
-		return CLI_ERROR;
-
-    snmpargv[sizeof(snmpargv) / sizeof(*snmpargv) - 1] = ip;
-
-    mibs_snmpwalk(sizeof(snmpargv) / sizeof(*snmpargv), snmpargv, sizeof(mibargv) / sizeof(*mibargv), mibargv, SNMP_SHOW);
-    return CLI_OK;
-}
-
 static int _realserver_config_modify(struct cli_def *cli, char *command, char *argv[], int argc, char *poolname, char *rsaddr)
 {
 	struct apppool *apppool;

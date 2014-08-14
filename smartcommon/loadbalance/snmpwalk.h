@@ -6,6 +6,8 @@
  */
 #ifndef __snmpwalk_h__
 #define __snmpwalk_h__
+#include "common/common.h"
+#include "loadbalance/apppool.h"
 struct get_info{
 	/* hold node of mib */
 	char *oid;
@@ -26,4 +28,5 @@ enum snmp_show{
  * .e.g : global_get_info = cpu.get_handle get info for cpu
  */
 extern int mibs_snmpwalk(int snmpargc, char *snmpargv[], int mibargc, char *mibargv[], int flag);
+extern int check_snmp(struct rserver *rserver);
 #endif
