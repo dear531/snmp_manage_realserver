@@ -168,7 +168,6 @@ static struct get_info mem = {
 	.get_handle = get_mem_info,
 };
 
-static int (*global_get_info)(const u_char *buf);
 static void
 usage(void)
 {
@@ -188,7 +187,7 @@ usage(void)
 }
 
 static void
-snmp_get_and_print(netsnmp_session * ss, oid * theoid, size_t theoid_len)
+snmp_get_and_print(netsnmp_session * ss, oid * theoid, size_t theoid_len, int (*b_global_get_info)(const u_char *buf))
 {
     netsnmp_pdu    *pdu, *response;
     netsnmp_variable_list *vars;
@@ -217,7 +216,7 @@ snmp_get_and_print(netsnmp_session * ss, oid * theoid, size_t theoid_len)
 /* flag for get infomartion show to standard output */
 					if (SNMP_SHOW == snmp_show_flag)
 						fprintf(stdout, "%s\n", buf);
-					global_get_info(buf);
+					b_global_get_info((const u_char *)buf);
 					if (out_len > 0)
 						free(buf);
 #endif
@@ -273,7 +272,7 @@ optProc(int argc, char *const *argv, int opt)
 
 
 static int
-snmpwalk(int argc, char *argv[])
+snmpwalk(int argc, char *argv[], int (*b_global_get_info)(const u_char *buf))
 {
     netsnmp_session session, *ss;
     netsnmp_pdu    *pdu, *response;
@@ -372,7 +371,7 @@ snmpwalk(int argc, char *argv[])
         !netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
                         NETSNMP_DS_WALK_DONT_CHECK_LEXICOGRAPHIC);
     if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_WALK_INCLUDE_REQUESTED)) {
-        snmp_get_and_print(ss, root, rootlen);
+        snmp_get_and_print(ss, root, rootlen, b_global_get_info);
     }
 
     if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
@@ -420,7 +419,7 @@ snmpwalk(int argc, char *argv[])
 							vars->name, vars->name_length, vars);
 					if (SNMP_SHOW == snmp_show_flag)
 						fprintf(stdout, "%s\n", buf);
-					global_get_info(buf);
+					b_global_get_info((const u_char *)buf);
 					if (out_len > 0)
 						free(buf);
 #endif
@@ -512,7 +511,7 @@ snmpwalk(int argc, char *argv[])
          * for get measure. 
          */
         if (!netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_WALK_DONT_GET_REQUESTED)) {
-            snmp_get_and_print(ss, root, rootlen);
+            snmp_get_and_print(ss, root, rootlen, b_global_get_info);
         }
     }
     snmp_close(ss);
@@ -543,8 +542,7 @@ walk_info_operation(int argc, char *argv[])
 	 * snmpwalk -v 3 -l authNoPriv -u usm_user -a MD5(or SHA) -A authenpassword
 	 * realipaddrs .1.3.6.1.4.1.99999.16
 	 */
-		global_get_info = cpu.get_handle;
-		ret = snmpwalk(argc, argv);
+		ret = snmpwalk(argc, argv, cpu.get_handle);
 		if (ret > 0)
 			return ret;
 	} else if (memcmp(mem.oid, argv[argc - 1], strlen(mem.oid) + 1) == 0) {
@@ -552,8 +550,7 @@ walk_info_operation(int argc, char *argv[])
 	 * snmpwalk -v 3 -l authNoPriv -u usm_user -a MD5(or SHA) -A authenpassword
 	 * realipaddrs .1.3.6.1.4.1.99999.15
 	 */
-		global_get_info = mem.get_handle;
-		ret = snmpwalk(argc, argv);
+		ret = snmpwalk(argc, argv, mem.get_handle);
 		if (ret > 0)
 			return ret;
 	}
