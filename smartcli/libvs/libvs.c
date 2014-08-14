@@ -1169,21 +1169,18 @@ static int vs_pool_rs_snmp_check(struct cli_def *cli,
 
 	list_for_each_entry(vserver, &queue, list) {
 		if (strlen(vserver->pool) == 0) {
-			fprintf(stderr, "snmp need by set apppool and config real server\n");
-			return CLI_ERROR;
-		} else {
-			module_get_queue(&pool_queue, "apppool", vserver->pool);
-			list_for_each_entry(apppool, &pool_queue, list) {
-				module_get_queue(&pool_queue, "apppool", vserver->pool);
-				if (list_empty(&apppool->realserver_head)) {
-						fprintf(stderr, "snmp need by set apppool and config real server\n");
-				}
-				list_for_each_entry(rserver, &apppool->realserver_head, list) {
-					if (inet_sockaddr2address(&rserver->address, address) != 0) {
-						fprintf(stderr, "snmp need by set apppool and config real server\n");
-						return CLI_ERROR;
-					}
-				}
+			goto err;
+		}
+	}
+	module_get_queue(&pool_queue, "apppool", vserver->pool);
+	list_for_each_entry(apppool, &pool_queue, list) {
+		module_get_queue(&pool_queue, "apppool", vserver->pool);
+		if (list_empty(&apppool->realserver_head)) {
+			goto err;
+		}
+		list_for_each_entry(rserver, &apppool->realserver_head, list) {
+			if (inet_sockaddr2address(&rserver->address, address) != 0) {
+				goto err;
 			}
 		}
 	}
@@ -1193,6 +1190,10 @@ static int vs_pool_rs_snmp_check(struct cli_def *cli,
 	}
 #endif
 	return CLI_OK;
+err:
+	fprintf(stderr, "snmp need by set apppool and config real server\n");
+	return CLI_ERROR;
+
 }
 static int vs_config_verify_client(struct cli_def *cli,
 		char *command, char *argv[], int argc)
