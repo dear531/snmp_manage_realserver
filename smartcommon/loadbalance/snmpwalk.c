@@ -537,7 +537,7 @@ snmpwalk(int argc, char *argv[])
 static int
 walk_info_operation(int argc, char *argv[])
 {
-	int ret;
+	int ret = 0;
 	if (memcmp(cpu.oid, argv[argc - 1], strlen(cpu.oid) + 1) == 0) {
 	/*
 	 * snmpwalk -v 3 -l authNoPriv -u usm_user -a MD5(or SHA) -A authenpassword

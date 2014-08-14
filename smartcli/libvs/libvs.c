@@ -1183,10 +1183,13 @@ static int vs_pool_rs_snmp_check(struct cli_def *cli,
 						fprintf(stderr, "snmp need by set apppool and config real server\n");
 						return CLI_ERROR;
 					}
-					fprintf(stdout, "address:%s \n", address);
 				}
 			}
 		}
+	}
+
+	if (vs_config_sched(cli, command, argv, argc) != CLI_OK) {
+		return CLI_ERROR;
 	}
 #endif
 	return CLI_OK;
