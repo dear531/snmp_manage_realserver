@@ -32,6 +32,8 @@
 #include "loadbalance/vserver.h"
 #include "network/network.h"
 #include "common/task.h"
+#include "common/list.h"
+#include "loadbalance/apppool.h"
 
 #include "smartlog.h"
 
@@ -55,12 +57,49 @@ struct daemon4_config * daemon4_config_get(void)
 	return &daemon4_config;
 }
 
+
+static int snmpwalk_time_vserver(void)
+{
+	struct vserver *vserver;
+	struct apppool *apppool;
+	struct rserver *rserver;
+	LIST_HEAD(queue);
+	LIST_HEAD(pool_queue);
+	char address[512] = {0};
+
+	module_get_queue(&queue, "vserver", NULL);
+
+	list_for_each_entry(vserver, &queue, list) {
+		if (strlen(vserver->pool) == 0
+			|| memcmp(vserver->sched, "snmp", sizeof("snmp")) != 0) {
+			goto err;
+		}
+		module_get_queue(&pool_queue, "apppool", NULL);
+		list_for_each_entry(apppool, &pool_queue, list) {
+			module_get_queue(&pool_queue, "apppool", vserver->pool);
+			if (list_empty(&apppool->realserver_head)) {
+				goto err;
+			}
+			list_for_each_entry(rserver, &apppool->realserver_head, list) {
+				if (inet_sockaddr2address(&rserver->address, address) != 0) {
+					goto err;
+				}
+				/* snmpwalk real server */
+				syslog(LOG_INFO, "%s\n", address);
+			}
+		}
+	}
+
+	return 0;
+err:
+	return -1;
+
+}
+
 static void callback_connection(int epfd, int fd, struct event *e)
 {
 	char buf[BUFSIZ];
 	int  len;
-
-	syslog(LOG_INFO, "+++++++++++++++++++++++++++++++++++\n");
 
 	memset(buf, '\0', sizeof(buf));
 	if ((len = read(fd, buf, sizeof(buf))) <= 0)
@@ -72,6 +111,8 @@ static void callback_connection(int epfd, int fd, struct event *e)
 		generator_entrance中调用, * * by anhk, 2012-03-19 **/
 		//informer_entrance();
 	}
+
+	snmpwalk_time_vserver();
 	syslog(LOG_INFO, "---------------------------------------\n");
 
 
