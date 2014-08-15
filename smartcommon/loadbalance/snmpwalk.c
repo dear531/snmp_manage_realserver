@@ -230,7 +230,6 @@ snmp_get_and_print(netsnmp_session * ss, oid * theoid, size_t theoid_len, int (*
     }
 	return ret;
 }
-
 static void
 optProc(int argc, char *const *argv, int opt)
 {
@@ -336,7 +335,7 @@ snmpwalk(int argc, char *argv[], int (*get_info_func)(const u_char *buf))
          * specified on the command line 
          */
         rootlen = MAX_OID_LEN;
-        if (snmp_parse_oid(argv[arg], root, &rootlen) == NULL) {
+        if (arg > 0 && snmp_parse_oid(argv[arg], root, &rootlen) == NULL) {
 			if (SNMP_SHOW == snmp_show_flag)
 				snmp_perror(argv[arg]);
 			return -4;
@@ -373,8 +372,7 @@ snmpwalk(int argc, char *argv[], int (*get_info_func)(const u_char *buf))
 
     running = 1;
 
-    check =
-        !netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
+    check = !netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
                         NETSNMP_DS_WALK_DONT_CHECK_LEXICOGRAPHIC);
     if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_WALK_INCLUDE_REQUESTED)) {
         tmp = snmp_get_and_print(ss, root, rootlen, get_info_func);
