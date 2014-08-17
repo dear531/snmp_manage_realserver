@@ -58,7 +58,7 @@ struct daemon4_config * daemon4_config_get(void)
 }
 
 
-static int snmpwalk_time_vserver(void)
+static int snmpwalk_flush_vserver(void)
 {
 	struct vserver *vserver;
 	struct apppool *apppool;
@@ -72,17 +72,17 @@ static int snmpwalk_time_vserver(void)
 	list_for_each_entry(vserver, &queue, list) {
 		if (strlen(vserver->pool) == 0
 			|| memcmp(vserver->sched, "snmp", sizeof("snmp")) != 0) {
-			goto err;
+			continue;
 		}
 		module_get_queue(&pool_queue, "apppool", NULL);
 		list_for_each_entry(apppool, &pool_queue, list) {
 			module_get_queue(&pool_queue, "apppool", vserver->pool);
 			if (list_empty(&apppool->realserver_head)) {
-				goto err;
+				continue;
 			}
 			list_for_each_entry(rserver, &apppool->realserver_head, list) {
 				if (inet_sockaddr2address(&rserver->address, address) != 0) {
-					goto err;
+					continue;
 				}
 				/* snmpwalk real server */
 				syslog(LOG_INFO, "%s\n", address);
@@ -91,9 +91,6 @@ static int snmpwalk_time_vserver(void)
 	}
 
 	return 0;
-err:
-	return -1;
-
 }
 
 static void callback_connection(int epfd, int fd, struct event *e)
@@ -112,7 +109,7 @@ static void callback_connection(int epfd, int fd, struct event *e)
 		//informer_entrance();
 	}
 
-	snmpwalk_time_vserver();
+	snmpwalk_flush_vserver();
 	syslog(LOG_INFO, "---------------------------------------\n");
 
 
