@@ -627,33 +627,19 @@ flaid:
 	return ret;
 }
 
-#if 1
-static char *search_rsip(const struct sockaddr_storage *addr,char *ip)
-{
-    char address[BUFSIZ];
-    char *p = NULL;
-    if (NULL == addr)
-        return NULL;
-    inet_sockaddr2address(addr, address);
-    if (strlen(address) != 0)
-        p = strchr(address, ':');
-    memset(ip, 0x00, sizeof(ip));
-    memcpy(ip, address, p - address);
-
-    return ip;
-}
 int check_snmp(struct rserver *rserver)
 {
     char *snmpargv[] = {"snmpwalk", "-v", rserver->snmp_version, "-l", rserver->securelevel,
      "-u", rserver->username, "-a", rserver->authProtocol, "-A", rserver->password, NULL,
     };
+    char address[BUFSIZ];
     char ip[3 * 4 + 3 + 1];
 
     char *mibargv[] = {
         ".1.3.6.1.4.1.99999.15", ".1.3.6.1.4.1.99999.16",
     };
-
-    search_rsip(&rserver->address, ip);
+	inet_sockaddr2address(&rserver->address, address);
+	get_ip_port(address, ip, NULL);
     if (strlen(ip) == 0)
 		return -1;
 
@@ -662,7 +648,6 @@ int check_snmp(struct rserver *rserver)
     mibs_snmpwalk(sizeof(snmpargv) / sizeof(*snmpargv), snmpargv, sizeof(mibargv) / sizeof(*mibargv), mibargv, SNMP_SHOW);
     return 0;
 }
-#endif
 #if 0
 
 int main(int argc, char *argv[])
