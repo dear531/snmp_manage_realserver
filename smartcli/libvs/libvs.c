@@ -1171,16 +1171,17 @@ static int vs_pool_rs_snmp_check(struct cli_def *cli,
 		if (strlen(vserver->pool) == 0) {
 			goto err;
 		}
-	}
-	module_get_queue(&pool_queue, "apppool", vserver->pool);
-	list_for_each_entry(apppool, &pool_queue, list) {
 		module_get_queue(&pool_queue, "apppool", vserver->pool);
-		if (list_empty(&apppool->realserver_head)) {
-			goto err;
-		}
-		list_for_each_entry(rserver, &apppool->realserver_head, list) {
-			if (inet_sockaddr2address(&rserver->address, address) != 0) {
+		list_for_each_entry(apppool, &pool_queue, list) {
+			module_get_queue(&pool_queue, "apppool", vserver->pool);
+			if (list_empty(&apppool->realserver_head)) {
 				goto err;
+			}
+			list_for_each_entry(rserver, &apppool->realserver_head, list) {
+				if (inet_sockaddr2address(&rserver->address, address) != 0
+					|| memcmp(rserver->snmp_enable, "on", sizeof("on")) != 0) {
+					goto err;
+				}
 			}
 		}
 	}
