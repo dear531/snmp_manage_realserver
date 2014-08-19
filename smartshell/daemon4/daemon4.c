@@ -56,10 +56,103 @@ struct daemon4_config * daemon4_config_get(void)
 {
 	return &daemon4_config;
 }
+struct vsnode {
+	char vsname[64];			/* vserver name */
+	struct list_head list;
+	struct list_head child_list;
+};
 
+struct appnode {
+	char appname[64];			/* apppool name */
+	struct list_head list;
+	struct list_head child_list;
+};
+
+struct rsnode {
+	struct list_head list;
+	/* ip address of real server */
+	char addrs[INET6_ADDRSTRLEN];
+	char weight[4];
+};
+
+static int snmpwalk_get_data(struct list_head *head)
+{
+	struct vserver *vserver;
+	struct vsnode *vsnode;
+#if 0
+	struct apppool *apppool;
+	struct rserver *rserver;
+	char address[512] = {0};
+#endif
+	LIST_HEAD(pool_queue);
+	LIST_HEAD(queue);
+
+	module_get_queue(&queue, "vserver", NULL);
+
+	list_for_each_entry(vserver, &queue, list) {
+
+		if (strlen(vserver->pool) == 0
+			|| memcmp(vserver->sched, "snmp", sizeof("snmp")) != 0) {
+			continue;
+		}
+
+		vsnode = malloc(sizeof(*vsnode));
+		if (NULL == vsnode) {
+			syslog(LOG_INFO, "malloc failure :%s, %d\n",
+					__FILE__, __LINE__);
+			goto err;
+		}
+
+		memcpy(vsnode->vsname, vserver->name, strlen(vserver->name) + 1);
+		INIT_LIST_HEAD(&vsnode->list);
+		INIT_LIST_HEAD(&vsnode->child_list);
+
+		if (list_empty(head)) {
+			list_add(&vsnode->list, head);
+		} else {
+			struct vsnode *vstmp;
+			vstmp = list_entry(head->next, struct vsnode, list);
+			list_add(&vsnode->list, &vstmp->list);
+		}
+
+		module_get_queue(&pool_queue, "apppool", NULL);
+		if (list_empty(head->next)) {
+			syslog(LOG_INFO, "head is empty:%d\n", list_empty(head->next));
+		}
+#if 0
+		list_for_each_entry(apppool, &pool_queue, list) {
+			module_get_queue(&pool_queue, "apppool", vserver->pool);
+			if (list_empty(&apppool->realserver_head)) {
+				continue;
+			}
+			list_for_each_entry(rserver, &apppool->realserver_head, list) {
+				if (inet_sockaddr2address(&rserver->address, address) != 0) {
+					continue;
+				}
+				/* snmpwalk real server */
+			}
+		}
+#endif
+	}
+	{
+		struct vsnode *vstmp;
+		vstmp = list_entry(head->next, struct vsnode, list);
+		syslog(LOG_INFO, "vstmp->child_list:%d\n", list_empty(&vstmp->child_list));
+	}
+	list_for_each_entry(vsnode, head, list) {
+		syslog(LOG_INFO, "vsnode->vsname:%s\n", vsnode->vsname);
+	}
+	return 0;
+err:
+	return -1;
+}
 
 static int snmpwalk_flush_vserver(void)
 {
+
+	struct list_head head = LIST_HEAD_INIT(head);
+	snmpwalk_get_data(&head);
+#if 0
 	struct vserver *vserver;
 	struct apppool *apppool;
 	struct rserver *rserver;
@@ -85,10 +178,13 @@ static int snmpwalk_flush_vserver(void)
 					continue;
 				}
 				/* snmpwalk real server */
-				syslog(LOG_INFO, "%s\n", address);
 			}
 		}
 	}
+#endif
+	/* get cpu and mem result */
+	/* save result to xml file */
+	/* free node list */
 
 	return 0;
 }
@@ -110,7 +206,6 @@ static void callback_connection(int epfd, int fd, struct event *e)
 	}
 
 	snmpwalk_flush_vserver();
-	syslog(LOG_INFO, "---------------------------------------\n");
 
 
 out:
