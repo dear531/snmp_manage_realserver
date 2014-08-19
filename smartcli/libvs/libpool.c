@@ -847,6 +847,8 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
 			} else if (strncmp(command, "snmp check", 10) == 0) {
                 if (check_snmp_complete_set_snmp_enable(rserver) == 0)
                     RSERVER_SET_VALUE(rserver->snmp_enable, "on");
+                else
+                    RSERVER_SET_VALUE(rserver->snmp_enable, "off");
 			} else if (strncmp(command, "snmp cpu", 8) == 0) {
                 RSERVER_SET_VALUE(rserver->cpu, argc == 0 ? "" : argv[0]);
                 if (strlen(rserver->cpu) > 0)
