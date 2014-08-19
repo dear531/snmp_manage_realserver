@@ -741,6 +741,32 @@ again:
     return CLI_OK;
 }
 #undef ZERO
+int check_cpu_mem(struct rserver *rserver)
+{
+    if (0 != rserver->cpu[0] && 0 != rserver->memory[0])
+        return 0;
+    return -1;
+}
+
+int check_snmp_complete_set_snmp_enable(struct rserver *rserver)
+{
+    int snmpret, cpumemret;
+    snmpret = check_snmp(rserver);
+    cpumemret = check_cpu_mem(rserver);
+    if (snmpret >= 0 && cpumemret == 0) {
+        fprintf(stdout, "auto set snmp enable on\n");
+        return 0;
+    }
+    if (snmpret < 0) {
+        fprintf(stdout, "please complete snmp element\n");
+        return -1;
+    }
+    if (cpumemret < 0){
+        fprintf(stdout, "please set cpu and memory\n");
+        return -1;
+    }
+    return -1;
+}
 
 static int _realserver_config_modify(struct cli_def *cli, char *command, char *argv[], int argc, char *poolname, char *rsaddr)
 {
@@ -819,7 +845,8 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
 			} else if (strncmp(command, "snmp password", 13) == 0) {
                 snmp_password(rserver);
 			} else if (strncmp(command, "snmp check", 10) == 0) {
-                check_snmp(rserver);
+                if (check_snmp_complete_set_snmp_enable(rserver) == 0)
+                    RSERVER_SET_VALUE(rserver->snmp_enable, "on");
 			} else if (strncmp(command, "snmp cpu", 8) == 0) {
                 RSERVER_SET_VALUE(rserver->cpu, argc == 0 ? "" : argv[0]);
                 if (strlen(rserver->cpu) > 0)

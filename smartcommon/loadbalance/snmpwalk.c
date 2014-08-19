@@ -645,8 +645,7 @@ int check_snmp(struct rserver *rserver)
 
     snmpargv[sizeof(snmpargv) / sizeof(*snmpargv) - 1] = ip;
 
-    mibs_snmpwalk(sizeof(snmpargv) / sizeof(*snmpargv), snmpargv, sizeof(mibargv) / sizeof(*mibargv), mibargv, SNMP_SHOW);
-    return 0;
+    return mibs_snmpwalk(sizeof(snmpargv) / sizeof(*snmpargv), snmpargv, sizeof(mibargv) / sizeof(*mibargv), mibargv, SNMP_SHOW);
 }
 #if 0
 
