@@ -110,8 +110,11 @@ static int set_vmtype_to_apppool(const char *poolname)
 }
 int add_realserver_to_apppool(const char *poolname, const char *value)
 {
+	char reverse[1024];
+	reverse[1024 - 1] = 0;
+
 	int ret = 0;
-	char ipaddr[1024], args[128], ip_min[128], ip_max[128];
+	char args[128], ip_min[128], ip_max[128], ipaddr[1024];
 
 	
         /** 检查IP版本 
