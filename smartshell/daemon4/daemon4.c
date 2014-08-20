@@ -34,6 +34,7 @@
 #include "common/task.h"
 #include "common/list.h"
 #include "loadbalance/apppool.h"
+#include "loadbalance/snmpwalk.h"
 
 #include "smartlog.h"
 
@@ -206,7 +207,7 @@ static int snmpwalk_get_data(struct list_head *head)
 
 			if ((rsnode = rsip_rsnode_list(ip, appnode)) == NULL)
 				goto err;
-
+			check_snmp(rserver, SNMP_HIDE);
 			/* snmpwalk real server */
 		}
 

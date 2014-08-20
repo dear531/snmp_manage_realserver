@@ -635,7 +635,7 @@ flaid:
 	return ret;
 }
 
-int check_snmp(struct rserver *rserver)
+int check_snmp(struct rserver *rserver, int mode)
 {
 	if (rserver->snmp_version[0] == 0
 		|| rserver->securelevel[0] == 0
@@ -666,7 +666,7 @@ int check_snmp(struct rserver *rserver)
 
     snmpargv[sizeof(snmpargv) / sizeof(*snmpargv) - 1] = ip;
 
-    return mibs_snmpwalk(sizeof(snmpargv) / sizeof(*snmpargv), snmpargv, sizeof(mibargv) / sizeof(*mibargv), mibargv, SNMP_SHOW);
+    return mibs_snmpwalk(sizeof(snmpargv) / sizeof(*snmpargv), snmpargv, sizeof(mibargv) / sizeof(*mibargv), mibargv, mode);
 err:
 	return -1;
 }
