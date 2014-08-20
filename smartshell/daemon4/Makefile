@@ -12,6 +12,7 @@ CFLAGS += -I ../../xenserver/xenserver/
 LDFLAGS = -lxml2 -lssl -lcrypto -lpthread -llog4c
 LDFLAGS += -lxensrv -lxenserver
 LDFLAGS += -lvmware  -lvixAllProducts -ldl
+LDFLAGS += -lnetsnmp -L/SmartGrid/snmp/lib
 
 VPATH := ../../smartcommon/
 
@@ -32,6 +33,14 @@ all: daemon4
 
 daemon4: $(OBJS) ../../smartcommon/libcomm.a  ../../smartlog/liblog4c_user.a ../../vcenter/libvm_vcenter.a
 	cc $(LDFLAGS) -o $@ $^
+	@if [  -e /etc/ld.so.conf.d/netsnmp.conf -a "`cat /etc/ld.so.conf.d/netsnmp.conf`" == "/SmartGrid/snmp/lib/" ];\
+	then\
+		echo "" > /dev/null;\
+	else\
+		echo "/SmartGrid/snmp/lib/" > /etc/ld.so.conf.d/netsnmp.conf;\
+	ldconfig;\
+	fi
+
 
 -include .depend
 
