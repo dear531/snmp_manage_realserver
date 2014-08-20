@@ -56,34 +56,107 @@ struct daemon4_config * daemon4_config_get(void)
 {
 	return &daemon4_config;
 }
-struct vsnode {
-	char vsname[64];			/* vserver name */
-	struct list_head list;
-	struct list_head child_list;
-};
 
 struct appnode {
-	char appname[64];			/* apppool name */
+	/* apppool name */
+	char appname[64];
+	/* link other appnode */
 	struct list_head list;
+	/* add child linker rsnode */
 	struct list_head child_list;
 };
 
 struct rsnode {
+	/* link prent appnode */
 	struct list_head list;
 	/* ip address of real server */
-	char addrs[INET6_ADDRSTRLEN];
+	char ip[INET6_ADDRSTRLEN];
 	char weight[4];
 };
 
+static int check_pool_uniq(struct vserver *vserver, struct list_head *head)
+{
+	struct appnode *tmpnode;
+	list_for_each_entry(tmpnode, head, list) {
+		/* repaet not add */
+		if (memcmp(vserver->pool, tmpnode->appname, strlen(tmpnode->appname) + 1) == 0) {
+			/* failrue return -1, call function coutinue current */
+			return -1;
+		}
+	}
+	/* success return 0, call function go on */
+	return 0;
+}
+
+static int check_rserver_uniq(char *ip, struct list_head *head)
+{
+	struct rsnode *tmpnode;
+	list_for_each_entry(tmpnode, head, list) {
+		/* repaet not add */
+		if (memcmp(ip, tmpnode->ip, strlen(tmpnode->ip) + 1) == 0) {
+			/* failrue return -1, call function coutinue current */
+			return -1;
+		}
+	}
+	/* success return 0, call function go on */
+	return 0;
+}
+
+/**
+ * copy name of apppool into appnode, and appnode add list
+ * vserver.pool-->appnode(init)-->list(head.list)
+ **/
+static struct appnode*
+apppoll_appnode_list(struct vserver *vserver, struct list_head *head)
+{
+	struct appnode *appnode;
+	appnode = malloc(sizeof(*appnode));
+	if (NULL == appnode) {
+		syslog(LOG_INFO, "malloc failure :%s, %s %d\n",
+				__FILE__, __func__, __LINE__);
+		goto err;
+	}
+
+	memcpy(appnode->appname, vserver->pool, strlen(vserver->pool) + 1);
+	INIT_LIST_HEAD(&appnode->list);
+	INIT_LIST_HEAD(&appnode->child_list);
+
+	list_add(&appnode->list, head);
+err:
+	return appnode;
+
+}
+
+/**
+ * copy ip of real server into rsnode.ip, and rsnode add list
+ * ip(real server)-->rsnode.ip-->appnode(head.list->appnode.child_list)
+ **/
+struct rsnode*
+rsip_rsnode_list(char *ip, struct appnode *appnode)
+{
+	struct rsnode *rsnode;
+	rsnode = malloc(sizeof(*rsnode));
+	if (NULL == rsnode) {
+		syslog(LOG_INFO, "malloc failure :%s, %s %d\n",
+				__FILE__, __func__, __LINE__);
+		goto err;
+	}
+	memcpy(rsnode->ip, ip, strlen(ip) + 1);
+	INIT_LIST_HEAD(&rsnode->list);
+	list_add(&rsnode->list, &appnode->child_list);
+err:
+	return rsnode;
+}
 static int snmpwalk_get_data(struct list_head *head)
 {
 	struct vserver *vserver;
-	struct vsnode *vsnode;
-#if 0
+	struct appnode *appnode;
 	struct apppool *apppool;
 	struct rserver *rserver;
-	char address[512] = {0};
-#endif
+	struct rsnode *rsnode;
+	char address[INET6_ADDRSTRLEN + 1 + 5 + 1] = {0};
+	char ip[INET6_ADDRSTRLEN] = {0};
+
 	LIST_HEAD(pool_queue);
 	LIST_HEAD(queue);
 
@@ -92,56 +165,69 @@ static int snmpwalk_get_data(struct list_head *head)
 	list_for_each_entry(vserver, &queue, list) {
 
 		if (strlen(vserver->pool) == 0
+#if 0
+			|| memcmp(vserver->enable, "on", sizeof("on")) != 0
+#endif
 			|| memcmp(vserver->sched, "snmp", sizeof("snmp")) != 0) {
 			continue;
 		}
+		/** jump repeat pool of vserver **/
+		if (check_pool_uniq(vserver, head) < 0)
+			continue;
 
-		vsnode = malloc(sizeof(*vsnode));
-		if (NULL == vsnode) {
-			syslog(LOG_INFO, "malloc failure :%s, %d\n",
-					__FILE__, __LINE__);
+		/** vserver.pool-->appnode(init)-->list(head.list) **/
+		if ((appnode = apppoll_appnode_list(vserver, head)) == NULL)
 			goto err;
-		}
 
-		memcpy(vsnode->vsname, vserver->name, strlen(vserver->name) + 1);
-		INIT_LIST_HEAD(&vsnode->list);
-		INIT_LIST_HEAD(&vsnode->child_list);
+		/** get apppool used snmp **/
+		module_get_queue(&pool_queue, "apppool", vserver->pool);
+		apppool = list_entry(pool_queue.next, struct apppool, list);
 
-		if (list_empty(head)) {
-			list_add(&vsnode->list, head);
-		} else {
-			struct vsnode *vstmp;
-			vstmp = list_entry(head->next, struct vsnode, list);
-			list_add(&vsnode->list, &vstmp->list);
+		/** check apppool rserver empty **/
+		if (list_empty(&apppool->realserver_head)) {
+			continue;
 		}
+		/** get each address(ip:port) of apppool **/
+		list_for_each_entry(rserver, &apppool->realserver_head, list) {
 
-		module_get_queue(&pool_queue, "apppool", NULL);
-		if (list_empty(head->next)) {
-			syslog(LOG_INFO, "head is empty:%d\n", list_empty(head->next));
-		}
-#if 0
-		list_for_each_entry(apppool, &pool_queue, list) {
-			module_get_queue(&pool_queue, "apppool", vserver->pool);
-			if (list_empty(&apppool->realserver_head)) {
+			/** get ip of real server **/
+			if (inet_sockaddr2address(&rserver->address, address) != 0) {
 				continue;
 			}
-			list_for_each_entry(rserver, &apppool->realserver_head, list) {
-				if (inet_sockaddr2address(&rserver->address, address) != 0) {
-					continue;
-				}
-				/* snmpwalk real server */
+			get_ip_port(address, ip, NULL);
+
+			syslog(LOG_INFO, "address:%s", address);
+			/** jump repeat ip of real server, eg ip:prot(1-n) **/
+			if (check_rserver_uniq(ip, &appnode->child_list) < 0) {
+				syslog(LOG_INFO, "this is repeat ip:%s\n", ip);
+				continue;
 			}
+			syslog(LOG_INFO, "this is add ip:%s\n", ip);
+
+			if ((rsnode = rsip_rsnode_list(ip, appnode)) == NULL)
+				goto err;
+
+			/* snmpwalk real server */
 		}
-#endif
+
+		/**
+		 * whenever not exits ip address of apppool,
+		 * and delele current apppool node
+		 **/
+		if (list_empty(&appnode->child_list)) {
+			list_del(&appnode->list);
+			free(appnode);
+			appnode = NULL;
+		}
 	}
-	{
-		struct vsnode *vstmp;
-		vstmp = list_entry(head->next, struct vsnode, list);
-		syslog(LOG_INFO, "vstmp->child_list:%d\n", list_empty(&vstmp->child_list));
+
+	list_for_each_entry(appnode, head, list) {
+		syslog(LOG_INFO, "appnode->appname:%s\n", appnode->appname);
+		list_for_each_entry(rsnode, &appnode->child_list, list) {
+			syslog(LOG_INFO, "rsnode->ip:%s\n", rsnode->ip);
+		}
 	}
-	list_for_each_entry(vsnode, head, list) {
-		syslog(LOG_INFO, "vsnode->vsname:%s\n", vsnode->vsname);
-	}
+
 	return 0;
 err:
 	return -1;
@@ -151,38 +237,9 @@ static int snmpwalk_flush_vserver(void)
 {
 
 	struct list_head head = LIST_HEAD_INIT(head);
-	snmpwalk_get_data(&head);
-#if 0
-	struct vserver *vserver;
-	struct apppool *apppool;
-	struct rserver *rserver;
-	LIST_HEAD(queue);
-	LIST_HEAD(pool_queue);
-	char address[512] = {0};
-
-	module_get_queue(&queue, "vserver", NULL);
-
-	list_for_each_entry(vserver, &queue, list) {
-		if (strlen(vserver->pool) == 0
-			|| memcmp(vserver->sched, "snmp", sizeof("snmp")) != 0) {
-			continue;
-		}
-		module_get_queue(&pool_queue, "apppool", NULL);
-		list_for_each_entry(apppool, &pool_queue, list) {
-			module_get_queue(&pool_queue, "apppool", vserver->pool);
-			if (list_empty(&apppool->realserver_head)) {
-				continue;
-			}
-			list_for_each_entry(rserver, &apppool->realserver_head, list) {
-				if (inet_sockaddr2address(&rserver->address, address) != 0) {
-					continue;
-				}
-				/* snmpwalk real server */
-			}
-		}
-	}
-#endif
 	/* get cpu and mem result */
+	snmpwalk_get_data(&head);
+
 	/* save result to xml file */
 	/* free node list */
 
