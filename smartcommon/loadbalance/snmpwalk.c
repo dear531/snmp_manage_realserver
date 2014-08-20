@@ -591,10 +591,10 @@ walk_info_operation(int argc, char *argv[])
 /* FIXME : copy and fix then function to new received result */
 #include <strings.h>
 int
-mibs_snmpwalk(int snmp_argc, char *snmp_argv[], int mib_argc, char *mib_argv[], int flag)
+mibs_snmpwalk(int snmp_argc, char *snmp_argv[], int mib_argc, struct mibarg *mib_argv, int flag)
 {
 	char **heap_argv;
-	int i, ret = 0;
+	int i, ret = 0, record = 0;
 	snmp_show_flag = flag;
 
 	heap_argv = malloc(sizeof(*heap_argv) * snmp_argc + 1);
@@ -605,7 +605,7 @@ mibs_snmpwalk(int snmp_argc, char *snmp_argv[], int mib_argc, char *mib_argv[], 
 	for (i = 0; i < mib_argc; i++) {
 
 		/* every unique one of several oids */
-		heap_argv[snmp_argc] = mib_argv[i];
+		heap_argv[snmp_argc] = mib_argv[i].mib;
 		/*
 		 * whenever running snmpwalk will clear user and password,
 		 * so reset user and password
@@ -618,12 +618,20 @@ mibs_snmpwalk(int snmp_argc, char *snmp_argv[], int mib_argc, char *mib_argv[], 
 		heap_argv[snmp_argc] = NULL;
 		if (ret < 0)
 			goto flaid;
+		else
+			record += (100 - ret) * mib_argv[i].num / 100;
+#if 0	/* debug info */
+		fprintf(stdout, "mib_argv[%d].mib:%s, num:%d, ret:%d, record:%d\n",
+				i, mib_argv[i].mib, mib_argv[i].num, ret, record);
+#endif
 	}
 flaid:
 	for (i = 0; i < snmp_argc + 1; i++)
 		if (NULL != heap_argv[i])
 			free(heap_argv[i]);
 	free(heap_argv);
+	if (ret >= 0)
+		return ORIGIN_WEGHT * record / 100;
 	return ret;
 }
 
@@ -633,7 +641,9 @@ int check_snmp(struct rserver *rserver)
 		|| rserver->securelevel[0] == 0
 		|| rserver->username[0] == 0
 		|| rserver->authProtocol[0] == 0
-		|| rserver->password[0] == 0) {
+		|| rserver->password[0] == 0
+		|| rserver->cpu[0] == 0
+		|| rserver->memory[0] == 0) {
 		goto err;
 	}
 
@@ -642,10 +652,12 @@ int check_snmp(struct rserver *rserver)
 	};
 
     char address[BUFSIZ];
-    char ip[3 * 4 + 3 + 1];
-
-    char *mibargv[] = {
-        ".1.3.6.1.4.1.99999.15", ".1.3.6.1.4.1.99999.16",
+    char ip[INET6_ADDRSTRLEN];
+	int cpu = strtol(rserver->cpu, NULL, 10);
+	int mem = strtol(rserver->memory, NULL, 10);
+	struct mibarg mibargv[] = {
+		{".1.3.6.1.4.1.99999.15", mem},
+		{".1.3.6.1.4.1.99999.16",cpu},
     };
 	inet_sockaddr2address(&rserver->address, address);
 	get_ip_port(address, ip, NULL);

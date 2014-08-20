@@ -23,10 +23,16 @@ enum snmp_show{
 	SNMP_SHOW,
 };
 
+struct mibarg {
+	char *mib;
+	int num;
+};
+#define ORIGIN_WEGHT	(20)
+
 /* 
  * in function snmpwalk of snmpwalk.c handle data
  * .e.g : global_get_info = cpu.get_handle get info for cpu
  */
-extern int mibs_snmpwalk(int snmpargc, char *snmpargv[], int mibargc, char *mibargv[], int flag);
+extern int mibs_snmpwalk(int snmp_argc, char *snmp_argv[], int mib_argc, struct mibarg *mib_argv, int flag);
 extern int check_snmp(struct rserver *rserver);
 #endif

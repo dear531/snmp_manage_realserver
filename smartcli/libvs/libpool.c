@@ -753,6 +753,9 @@ int check_snmp_complete_set_snmp_enable(struct rserver *rserver)
     int snmpret, cpumemret;
     snmpret = check_snmp(rserver);
     cpumemret = check_cpu_mem(rserver);
+#if 0   /* debug information */
+    fprintf(stdout, "snmp ret :%d\n", snmpret);
+#endif
     if (snmpret >= 0 && cpumemret == 0) {
         fprintf(stdout, "auto set snmp enable on\n");
         return 0;
