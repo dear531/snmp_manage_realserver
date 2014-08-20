@@ -629,9 +629,18 @@ flaid:
 
 int check_snmp(struct rserver *rserver)
 {
-    char *snmpargv[] = {"snmpwalk", "-v", rserver->snmp_version, "-l", rserver->securelevel,
-     "-u", rserver->username, "-a", rserver->authProtocol, "-A", rserver->password, NULL,
-    };
+	if (rserver->snmp_version[0] == 0
+		|| rserver->securelevel[0] == 0
+		|| rserver->username[0] == 0
+		|| rserver->authProtocol[0] == 0
+		|| rserver->password[0] == 0) {
+		goto err;
+	}
+
+	char *snmpargv[] = {"snmpwalk", "-v", rserver->snmp_version, "-l", rserver->securelevel,
+	 "-u", rserver->username, "-a", rserver->authProtocol, "-A", rserver->password, NULL,
+	};
+
     char address[BUFSIZ];
     char ip[3 * 4 + 3 + 1];
 
@@ -641,11 +650,13 @@ int check_snmp(struct rserver *rserver)
 	inet_sockaddr2address(&rserver->address, address);
 	get_ip_port(address, ip, NULL);
     if (strlen(ip) == 0)
-		return -1;
+		goto err;
 
     snmpargv[sizeof(snmpargv) / sizeof(*snmpargv) - 1] = ip;
 
     return mibs_snmpwalk(sizeof(snmpargv) / sizeof(*snmpargv), snmpargv, sizeof(mibargv) / sizeof(*mibargv), mibargv, SNMP_SHOW);
+err:
+	return -1;
 }
 #if 0
 
