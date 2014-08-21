@@ -205,8 +205,9 @@ static int snmpwalk_get_data(struct list_head *head)
 			}
 			syslog(LOG_INFO, "this is add ip:%s\n", ip);
 
-			if ((rsnode = rsip_rsnode_list(ip, appnode)) == NULL)
+			if ((rsnode = rsip_rsnode_list(ip, appnode)) == NULL) {
 				goto err;
+			}
 			check_snmp(rserver, SNMP_HIDE);
 			/* snmpwalk real server */
 		}
@@ -234,6 +235,21 @@ err:
 	return -1;
 }
 
+static void destroy_nodes(struct list_head *head)
+{
+	struct appnode *appnode, *backupapp;
+	struct rsnode *rsnode, *backuprs;
+
+	list_for_each_entry_safe(appnode, backupapp, head, list) {
+		list_for_each_entry_safe(rsnode, backuprs, &appnode->child_list, list) {
+			list_del(&rsnode->list);
+			free(rsnode);
+		}
+		list_del(&appnode->list);
+		free(appnode);
+	}
+	return;
+}
 static int snmpwalk_flush_vserver(void)
 {
 
@@ -243,6 +259,7 @@ static int snmpwalk_flush_vserver(void)
 
 	/* save result to xml file */
 	/* free node list */
+	destroy_nodes(&head);
 
 	return 0;
 }
