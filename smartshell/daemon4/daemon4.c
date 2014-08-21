@@ -72,6 +72,7 @@ struct rsnode {
 	struct list_head list;
 	/* ip address of real server */
 	char ip[INET6_ADDRSTRLEN];
+	int pfd[2];
 	char weight[4];
 };
 
@@ -148,6 +149,23 @@ rsip_rsnode_list(char *ip, struct appnode *appnode)
 err:
 	return rsnode;
 }
+
+static void destroy_nodes(struct list_head *head)
+{
+	struct appnode *appnode, *backupapp;
+	struct rsnode *rsnode, *backuprs;
+
+	list_for_each_entry_safe(appnode, backupapp, head, list) {
+		list_for_each_entry_safe(rsnode, backuprs, &appnode->child_list, list) {
+			list_del(&rsnode->list);
+			free(rsnode);
+		}
+		list_del(&appnode->list);
+		free(appnode);
+	}
+	return;
+}
+
 static int snmpwalk_get_data(struct list_head *head)
 {
 	struct vserver *vserver;
@@ -157,6 +175,7 @@ static int snmpwalk_get_data(struct list_head *head)
 	struct rsnode *rsnode;
 	char address[INET6_ADDRSTRLEN + 1 + 5 + 1] = {0};
 	char ip[INET6_ADDRSTRLEN] = {0};
+	pid_t pid;
 
 	LIST_HEAD(pool_queue);
 	LIST_HEAD(queue);
@@ -196,20 +215,52 @@ static int snmpwalk_get_data(struct list_head *head)
 				continue;
 			}
 			get_ip_port(address, ip, NULL);
-
+#define SNMPWALK_DEBUG	0
+#if SNMPWALK_DEBUG
 			syslog(LOG_INFO, "address:%s", address);
+#endif
 			/** jump repeat ip of real server, eg ip:prot(1-n) **/
 			if (check_rserver_uniq(ip, &appnode->child_list) < 0) {
+#if SNMPWALK_DEBUG
 				syslog(LOG_INFO, "this is repeat ip:%s\n", ip);
+#endif
 				continue;
 			}
+#if SNMPWALK_DEBUG
 			syslog(LOG_INFO, "this is add ip:%s\n", ip);
+#endif
+#undef SNMPWALK_DEBUG
 
 			if ((rsnode = rsip_rsnode_list(ip, appnode)) == NULL) {
 				goto err;
 			}
-			check_snmp(rserver, SNMP_HIDE);
-			/* snmpwalk real server */
+
+			if (pipe(rsnode->pfd) < 0) {
+				syslog(LOG_INFO, "pipe failure %s %s %d\n",
+						__FILE__, __func__, __LINE__);
+				goto err;
+			}
+
+			if ((pid = fork()) < 0) {
+			/** fork error **/
+				syslog(LOG_INFO, "create proccess failure %s %s %d\n",
+						__FILE__, __func__, __LINE__);
+			} else if (pid == 0) {
+			/** child proccess **/
+				/* snmpwalk real server */
+				int ret;
+				close(rsnode->pfd[0]);
+				ret = check_snmp(rserver, SNMP_HIDE);
+				write(rsnode->pfd[1], &ret, sizeof(ret));
+				destroy_nodes(head);
+				exit(EXIT_SUCCESS);
+			} else {
+				int ret;
+			/** perent proccess **/
+				/** epoll set read **/
+				close(rsnode->pfd[1]);
+				read(rsnode->pfd[0], &ret, sizeof(ret));
+			}
 		}
 
 		/**
@@ -235,31 +286,31 @@ err:
 	return -1;
 }
 
-static void destroy_nodes(struct list_head *head)
-{
-	struct appnode *appnode, *backupapp;
-	struct rsnode *rsnode, *backuprs;
-
-	list_for_each_entry_safe(appnode, backupapp, head, list) {
-		list_for_each_entry_safe(rsnode, backuprs, &appnode->child_list, list) {
-			list_del(&rsnode->list);
-			free(rsnode);
-		}
-		list_del(&appnode->list);
-		free(appnode);
-	}
-	return;
-}
 static int snmpwalk_flush_vserver(void)
 {
 
 	struct list_head head = LIST_HEAD_INIT(head);
-	/* get cpu and mem result */
-	snmpwalk_get_data(&head);
+	pid_t pid;
+	/* set ignore signal child, for do not zombie proccess */
+	if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {
+		syslog(LOG_INFO, "set child signal error %s %s %d\n",
+				__FILE__, __func__, __LINE__);
+		return -1;
+	} 
 
-	/* save result to xml file */
-	/* free node list */
-	destroy_nodes(&head);
+	if ((pid = fork()) < 0) {
+		syslog(LOG_INFO, "fork error %s %s %d\n",
+				__FILE__, __func__, __LINE__);
+		return -1;
+	} else if (0 == pid) {
+		/* get cpu and mem result */
+		snmpwalk_get_data(&head);
+
+		/* save result to xml file */
+		/* free node list */
+		destroy_nodes(&head);
+		exit(EXIT_SUCCESS);
+	}
 
 	return 0;
 }
