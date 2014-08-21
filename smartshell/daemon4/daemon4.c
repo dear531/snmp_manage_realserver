@@ -114,8 +114,8 @@ apppoll_appnode_list(struct vserver *vserver, struct list_head *head)
 	struct appnode *appnode;
 	appnode = malloc(sizeof(*appnode));
 	if (NULL == appnode) {
-		syslog(LOG_INFO, "malloc failure :%s, %s %d\n",
-				__FILE__, __func__, __LINE__);
+		syslog(LOG_INFO, "malloc failure %s: %s, %s %d\n",
+				strerror(errno), __FILE__, __func__, __LINE__);
 		goto err;
 	}
 
@@ -139,8 +139,8 @@ rsip_rsnode_list(char *ip, struct appnode *appnode)
 	struct rsnode *rsnode;
 	rsnode = malloc(sizeof(*rsnode));
 	if (NULL == rsnode) {
-		syslog(LOG_INFO, "malloc failure :%s, %s %d\n",
-				__FILE__, __func__, __LINE__);
+		syslog(LOG_INFO, "malloc failure %s:%s, %s %d\n",
+				strerror(errno), __FILE__, __func__, __LINE__);
 		goto err;
 	}
 	memcpy(rsnode->ip, ip, strlen(ip) + 1);
@@ -236,15 +236,15 @@ static int snmpwalk_get_data(struct list_head *head)
 			}
 
 			if (pipe(rsnode->pfd) < 0) {
-				syslog(LOG_INFO, "pipe failure %s %s %d\n",
-						__FILE__, __func__, __LINE__);
+				syslog(LOG_INFO, "pipe failure :%s %s %s %d\n",
+						strerror(errno), __FILE__, __func__, __LINE__);
 				goto err;
 			}
 
 			if ((pid = fork()) < 0) {
 			/** fork error **/
-				syslog(LOG_INFO, "create proccess failure %s %s %d\n",
-						__FILE__, __func__, __LINE__);
+				syslog(LOG_INFO, "create proccess failure:%s %s %s %d\n",
+						strerror(errno), __FILE__, __func__, __LINE__);
 			} else if (pid == 0) {
 			/** child proccess **/
 				/* snmpwalk real server */
@@ -293,14 +293,14 @@ static int snmpwalk_flush_vserver(void)
 	pid_t pid;
 	/* set ignore signal child, for do not zombie proccess */
 	if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {
-		syslog(LOG_INFO, "set child signal error %s %s %d\n",
-				__FILE__, __func__, __LINE__);
+		syslog(LOG_INFO, "set child signal error:%s %s %s %d\n",
+				strerror(errno), __FILE__, __func__, __LINE__);
 		return -1;
 	} 
 
 	if ((pid = fork()) < 0) {
-		syslog(LOG_INFO, "fork error %s %s %d\n",
-				__FILE__, __func__, __LINE__);
+		syslog(LOG_INFO, "fork error :%s %s %s %d\n",
+				strerror(errno), __FILE__, __func__, __LINE__);
 		return -1;
 	} else if (0 == pid) {
 		/* get cpu and mem result */
