@@ -166,6 +166,20 @@ static void destroy_nodes(struct list_head *head)
 	return;
 }
 
+static struct rsnode*
+search_list_by_fd(int fd, struct list_head *head)
+{
+	struct appnode *appnode;
+	struct rsnode *rsnode;
+	list_for_each_entry(appnode, head, list) {
+		list_for_each_entry(rsnode, &appnode->child_list, list) {
+			if (rsnode->pfd[0] == fd)
+				return rsnode;
+		}
+	}
+	return NULL;
+}
+
 static int snmpwalk_get_data(struct list_head *head)
 {
 	struct vserver *vserver;
@@ -176,6 +190,17 @@ static int snmpwalk_get_data(struct list_head *head)
 	char address[INET6_ADDRSTRLEN + 1 + 5 + 1] = {0};
 	char ip[INET6_ADDRSTRLEN] = {0};
 	pid_t pid;
+	int fdnum = 0, fdn;
+	/* epoll create */
+	int epfd;
+	/* set all fd check readable */
+	struct epoll_event tmpevt = {.events = EPOLLIN};
+	epfd = epoll_create(1024);
+	if (epfd < 0) {
+		syslog(LOG_INFO, "epoll create %s %s %s %d\n",
+				strerror(errno), __FILE__, __func__, __LINE__);
+		goto err;
+	}
 
 	LIST_HEAD(pool_queue);
 	LIST_HEAD(queue);
@@ -229,7 +254,6 @@ static int snmpwalk_get_data(struct list_head *head)
 #if SNMPWALK_DEBUG
 			syslog(LOG_INFO, "this is add ip:%s\n", ip);
 #endif
-#undef SNMPWALK_DEBUG
 
 			if ((rsnode = rsip_rsnode_list(ip, appnode)) == NULL) {
 				goto err;
@@ -252,14 +276,17 @@ static int snmpwalk_get_data(struct list_head *head)
 				close(rsnode->pfd[0]);
 				ret = check_snmp(rserver, SNMP_HIDE);
 				write(rsnode->pfd[1], &ret, sizeof(ret));
+				close(rsnode->pfd[1]);
 				destroy_nodes(head);
 				exit(EXIT_SUCCESS);
 			} else {
-				int ret;
 			/** perent proccess **/
 				/** epoll set read **/
 				close(rsnode->pfd[1]);
-				read(rsnode->pfd[0], &ret, sizeof(ret));
+				setnonblocking(rsnode->pfd[0]);
+				fdnum++;
+				tmpevt.data.fd = rsnode->pfd[0];
+				epoll_ctl(epfd, EPOLL_CTL_ADD, rsnode->pfd[0], &tmpevt);
 			}
 		}
 
@@ -273,11 +300,52 @@ static int snmpwalk_get_data(struct list_head *head)
 			appnode = NULL;
 		}
 	}
+	{	
+		struct epoll_event fdes[fdnum];
+		int fdmax = fdnum;
+		int n, ret, i;
+		for ( ; fdmax; ) {
+			fdn = epoll_wait(epfd, fdes, fdnum, 1000 * 10);
+			for (i = 0; i < fdn; i++) {
+				if ((n = read(fdes[i].data.fd, &ret, sizeof(ret))) > 0) {
+				/* snmpwalk check return data */
+					if ((rsnode = search_list_by_fd(fdes[i].data.fd, head)) == NULL) {
+						syslog(LOG_INFO, "search file descriptor error\n");
+					} else {
+						sprintf(rsnode->weight, "%d", ret);
+#if SNMPWALK_DEBUG
+						syslog(LOG_INFO, "search ip :%s weight: %s",
+								rsnode->ip, rsnode->weight);
+#endif
+					}
+				} else if (n == 0) {
+				/* peel close */
+					if ((rsnode = search_list_by_fd(fdes[i].data.fd, head)) == NULL) {
+						syslog(LOG_INFO, "search file descriptor error\n");
+					} else {
+						rsnode->pfd[0] = -1;
+					}
+					epoll_ctl(epfd, EPOLL_CTL_DEL,fdes[i].data.fd, &fdes[i]);
+					close(fdes[i].data.fd);
+					fdmax--;
+				} else {
+				/* read error */
+					syslog(LOG_INFO, "epoll read error :%s %s %s %d\n",
+							strerror(errno), __FILE__, __func__, __LINE__);
+				}
+			}
+#if SNMPWALK_DEBUG
+			syslog(LOG_INFO, "fdmax:%d\n", fdmax);
+#endif
+#undef SNMPWALK_DEBUG
+		}
 
+	}
 	list_for_each_entry(appnode, head, list) {
 		syslog(LOG_INFO, "appnode->appname:%s\n", appnode->appname);
 		list_for_each_entry(rsnode, &appnode->child_list, list) {
-			syslog(LOG_INFO, "rsnode->ip:%s\n", rsnode->ip);
+			syslog(LOG_INFO, "rsnode->ip:%s, rsnode->weight:%s\n",
+					rsnode->ip, rsnode->weight);
 		}
 	}
 
