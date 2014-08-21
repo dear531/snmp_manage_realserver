@@ -827,7 +827,6 @@ static int apppool_set(struct list_head *list, const char *name,
 					strcpy(rs->weight, "10");
 					strcpy(rs->enable, "on");
 					strcpy(rs->state, "unknown");
-					strcpy(rs->snmp_version, "3");
 					list_add_tail(list, &apppool->realserver_head);
 				}
 				break;
