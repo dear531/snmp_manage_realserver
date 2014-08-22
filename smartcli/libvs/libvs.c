@@ -728,6 +728,7 @@ static void vserver_print_detail_content(struct vserver *vserver)
 	char rname[64];
 	char statements[4096];
 	char address[BUFSIZ];
+//	fprintf(stderr,"%s:%d protocol:[%s]\n",__func__,__LINE__,vserver->protocol);
 
 	SHOW_DETAIL_LINE;
 	if (strcmp(vserver->type, "ipv6") == 0) {

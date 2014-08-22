@@ -1723,6 +1723,36 @@ static struct str_desc str_desc [] = {
 		.cn = "控制SMTP服务",
 	},
 
+	[ LIBCLI_SYSCONFIG_LLBAGENTENABLE ] = {
+		.en = "Set llbagentenable of this LLB",
+		.cn = "设置llbagentenable",
+	},
+
+	[ LIBCLI_SYSCONFIG_LLBAGENT_ENABLE_ON ] = {
+		.en = "Set llbagentenable on of this LLB",
+		.cn = "设置llbagentenable on",
+	},
+
+	[ LIBCLI_SYSCONFIG_LLBAGENT_ENABLE_OFF ] = {
+		.en = "Set llbagentenable off of this LLB",
+		.cn = "设置llbagentenable off",
+	},
+
+	[ LIBCLI_SYSCONFIG_LLBAGENTSADDR ] = {
+		.en = "Set llbagentsaddr of this LLB",
+		.cn = "设置llbagentsaddr",
+	},
+
+	[ LIBCLI_SYSCONFIG_LLBAGENTDADDR ] = {
+		.en = "Set llbagentdaddr of this LLB",
+		.cn = "设置llbagentdaddr",
+	},
+
+	[ LIBCLI_SYSCONFIG_LLBSYSLOGSERVER ] = {
+		.en = "Set llbsyslogserver of this LLB",
+		.cn = "设置llbsyslogserver",
+	},
+
 	[ LIBCLI_SYSCONFIG_SET_ENABLE_ON ] = {
 		.en = "LLB Service enable",
 		.cn = "启用Sysconfig服务",
