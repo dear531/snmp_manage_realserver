@@ -338,10 +338,10 @@ static int snmpwalk_get_data(struct list_head *head)
 #if SNMPWALK_DEBUG
 			syslog(LOG_INFO, "fdmax:%d\n", fdmax);
 #endif
-#undef SNMPWALK_DEBUG
 		}
-
 	}
+
+#if SNMPWALK_DEBUG
 	list_for_each_entry(appnode, head, list) {
 		syslog(LOG_INFO, "appnode->appname:%s\n", appnode->appname);
 		list_for_each_entry(rsnode, &appnode->child_list, list) {
@@ -349,6 +349,8 @@ static int snmpwalk_get_data(struct list_head *head)
 					rsnode->ip, rsnode->weight);
 		}
 	}
+#endif
+#undef SNMPWALK_DEBUG
 
 	return 0;
 err:
@@ -357,7 +359,6 @@ err:
 
 static pid_t snmpwalk_pid = 0;
 
-#if 1
 /**
  * 对realserver进行修改操作
  **/
@@ -454,13 +455,14 @@ static int do_realserver_config_modify(char *poolname, struct rserver *rserver)
 
 #undef RSERVER_SET_VALUE
 
-	syslog(LOG_INFO, "buff:%s\n", buff);
-	/* XXX : */
+	/**
+	 * XXX : immetiately call function
+	 * add_realserver_to_apppool in smartcomm
+	 **/
 	add_realserver_to_apppool(poolname, buff);
 
 	return 0;
 }
-#endif
 
 static void snmpwalk_nodes_save(struct list_head *head)
 {
@@ -509,9 +511,12 @@ static void snmpwalk_nodes_save(struct list_head *head)
 					} else {
 						continue;
 					}
-#if 1
+
+					/*
+					 * XXX : immetiataly copy do_realserver_config_modify
+					 * and fix to used
+					 */
 					do_realserver_config_modify(apppool->name, rserver);
-#endif
 				}
 			}
 		}
@@ -531,22 +536,23 @@ static int snmpwalk_flush_vserver(void)
 		return -1;
 	} 
 
+	/* check snmpwalk child, if exists util else fork */
 	char procfile[sizeof("/proc/4294967295/status")];
 	sprintf(procfile, "/proc/%d/status", snmpwalk_pid);
 	if (access(procfile, F_OK) == 0) {
-		syslog(LOG_INFO, "%s exists\n", procfile);
 		goto util;
 	} else {
 		snmpwalk_pid = 0;
-		syslog(LOG_INFO, "%s not exits\n", procfile);
 	}
 
 	if ((pid = fork()) < 0) {
+	/** error **/
 		syslog(LOG_INFO, "fork error :%s %s %s %d\n",
 				strerror(errno), __FILE__, __func__, __LINE__);
 		snmpwalk_pid = 0;
 		return -1;
 	} else if (0 == pid) {
+	/** child proccess **/
 		/* get cpu and mem result */
 		snmpwalk_get_data(&head);
 
@@ -557,6 +563,7 @@ static int snmpwalk_flush_vserver(void)
 		destroy_nodes(&head);
 		exit(EXIT_SUCCESS);
 	} else {
+	/** perent proccess **/
 		snmpwalk_pid = pid;
 	}
 util:
