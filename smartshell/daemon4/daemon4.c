@@ -211,12 +211,13 @@ static int snmpwalk_get_data(struct list_head *head)
 	list_for_each_entry(vserver, &queue, list) {
 
 		if (strlen(vserver->pool) == 0
-#if 0
+#if 1
 			|| memcmp(vserver->enable, "on", sizeof("on")) != 0
 #endif
 			|| memcmp(vserver->sched, "snmp", sizeof("snmp")) != 0) {
 			continue;
 		}
+
 		/** jump repeat pool of vserver **/
 		if (check_pool_uniq(vserver, head) < 0)
 			continue;
