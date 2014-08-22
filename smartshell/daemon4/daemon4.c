@@ -241,20 +241,10 @@ static int snmpwalk_get_data(struct list_head *head)
 				continue;
 			}
 			get_ip_port(address, ip, NULL);
-#define SNMPWALK_DEBUG	0
-#if SNMPWALK_DEBUG
-			syslog(LOG_INFO, "address:%s", address);
-#endif
 			/** jump repeat ip of real server, eg ip:prot(1-n) **/
 			if (check_rserver_uniq(ip, &appnode->child_list) < 0) {
-#if SNMPWALK_DEBUG
-				syslog(LOG_INFO, "this is repeat ip:%s\n", ip);
-#endif
 				continue;
 			}
-#if SNMPWALK_DEBUG
-			syslog(LOG_INFO, "this is add ip:%s\n", ip);
-#endif
 
 			if ((rsnode = rsip_rsnode_list(ip, appnode)) == NULL) {
 				goto err;
@@ -314,10 +304,6 @@ static int snmpwalk_get_data(struct list_head *head)
 						syslog(LOG_INFO, "search file descriptor error\n");
 					} else {
 						sprintf(rsnode->weight, "%d", ret);
-#if SNMPWALK_DEBUG
-						syslog(LOG_INFO, "search ip :%s weight: %s",
-								rsnode->ip, rsnode->weight);
-#endif
 					}
 				} else if (n == 0) {
 				/* peel close */
@@ -335,22 +321,8 @@ static int snmpwalk_get_data(struct list_head *head)
 							strerror(errno), __FILE__, __func__, __LINE__);
 				}
 			}
-#if SNMPWALK_DEBUG
-			syslog(LOG_INFO, "fdmax:%d\n", fdmax);
-#endif
 		}
 	}
-
-#if SNMPWALK_DEBUG
-	list_for_each_entry(appnode, head, list) {
-		syslog(LOG_INFO, "appnode->appname:%s\n", appnode->appname);
-		list_for_each_entry(rsnode, &appnode->child_list, list) {
-			syslog(LOG_INFO, "rsnode->ip:%s, rsnode->weight:%s\n",
-					rsnode->ip, rsnode->weight);
-		}
-	}
-#endif
-#undef SNMPWALK_DEBUG
 
 	return 0;
 err:
