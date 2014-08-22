@@ -35,6 +35,7 @@
 #include "common/list.h"
 #include "loadbalance/apppool.h"
 #include "loadbalance/snmpwalk.h"
+#include "common/base64.h"
 
 #include "smartlog.h"
 
@@ -183,9 +184,9 @@ search_list_by_fd(int fd, struct list_head *head)
 static int snmpwalk_get_data(struct list_head *head)
 {
 	struct vserver *vserver;
-	struct appnode *appnode;
 	struct apppool *apppool;
 	struct rserver *rserver;
+	struct appnode *appnode;
 	struct rsnode *rsnode;
 	char address[INET6_ADDRSTRLEN + 1 + 5 + 1] = {0};
 	char ip[INET6_ADDRSTRLEN] = {0};
@@ -354,6 +355,170 @@ err:
 	return -1;
 }
 
+static pid_t snmpwalk_pid = 0;
+
+#if 1
+/**
+ * 对realserver进行修改操作
+ **/
+static int do_realserver_config_modify(char *poolname, struct rserver *rserver)
+{
+	struct apppool *pool;
+	char buff[BUFSIZ];
+
+	char address[BUFSIZ];
+	inet_sockaddr2address(&rserver->address, address);
+	sprintf(buff, "%s",address);
+
+#define RSERVER_SET_VALUE(x, value)					\
+	do {								\
+		if (value[0] != 0) {					\
+			sprintf(buff, "%s,%s=%s", buff, x, value);	\
+		}							\
+	} while (0)
+
+	RSERVER_SET_VALUE("weight", rserver->weight);
+	RSERVER_SET_VALUE("maxconn", rserver->maxconn);
+	RSERVER_SET_VALUE("maxreq", rserver->maxreq);
+	RSERVER_SET_VALUE("bandwidth", rserver->bandwidth);
+	RSERVER_SET_VALUE("healthcheck", rserver->healthcheck);
+	RSERVER_SET_VALUE("enable", rserver->enable);
+
+	/* check snmp state:vilad,in- */
+	RSERVER_SET_VALUE("snmp_check", rserver->snmp_check);
+	/* snmp version of realserver */
+	RSERVER_SET_VALUE("snmp_version", rserver->snmp_version);
+	/* snmp name */
+	RSERVER_SET_VALUE("name", rserver->name);
+	/* on, off */
+	RSERVER_SET_VALUE("snmp_enable", rserver->snmp_enable);
+	/* community */
+	RSERVER_SET_VALUE("community", rserver->community);
+	/* SNMPv3 auth type, MD5 or SHA1 */
+	RSERVER_SET_VALUE("authProtocol", rserver->authProtocol);
+	/* noAuthNoPriv|authNoPriv|authPriv */
+	RSERVER_SET_VALUE("securelevel", rserver->securelevel);
+	/* control snmptrap */
+	RSERVER_SET_VALUE("trap_enable", rserver->trap_enable);
+	/* manager ip */
+	RSERVER_SET_VALUE("trap_manager", rserver->trap_manager);
+	/* trap v3 engine id */
+	RSERVER_SET_VALUE("trap_v3_engineid", rserver->trap_v3_engineid);
+	/* trap v3 username */
+	RSERVER_SET_VALUE("trap_v3_username", rserver->trap_v3_username);
+	/* trap v3 password */
+	RSERVER_SET_VALUE("trap_v3_password", rserver->trap_v3_password);
+	/* DES, AES */
+	RSERVER_SET_VALUE("trap_v3_privacy_protocol", rserver->trap_v3_privacy_protocol);
+	/* privacy password */
+	RSERVER_SET_VALUE("trap_v3_privacy_password", rserver->trap_v3_privacy_password);
+	/* authencation usm_name */
+	RSERVER_SET_VALUE("username", rserver->username);
+	/* authencation password */
+	RSERVER_SET_VALUE("password", rserver->password);
+	RSERVER_SET_VALUE("cpu", rserver->cpu);
+	RSERVER_SET_VALUE("memory", rserver->memory);
+
+	/* get pool */
+	LIST_HEAD(pool_head);
+	module_get_queue(&pool_head, "apppool", poolname);
+	if (list_empty(&pool_head)) {
+		return -1;
+	}
+	pool = list_first_entry(&pool_head, struct apppool, list);
+	if( strcmp(pool->vmtype, "vmware")==0 && strlen(rserver->vmxpath)) {
+		char tmp[1024];
+		memset(tmp, 0, 1024);
+		base64_encode(tmp, 1023, (uint8_t *)rserver->vmxpath,
+							strlen(rserver->vmxpath));
+		RSERVER_SET_VALUE("vmxpath", tmp);
+	} else if(strcmp(pool->vmtype, "xenserver")==0 && strlen(rserver->uuid)) {
+		char tmp[1024];
+		memset(tmp, 0, 1024);
+		base64_encode(tmp, 1023, (uint8_t *)rserver->uuid, 
+					strlen(rserver->uuid));
+		RSERVER_SET_VALUE("uuid", tmp);
+	}
+
+	if (rserver->rscenter[0] != 0) {
+		RSERVER_SET_VALUE("rscenter", rserver->rscenter);
+	}
+
+	if (rserver->rscenter[0] != 0) {
+		RSERVER_SET_VALUE("vmdatacenter", rserver->vmdatacenter);
+	}
+	
+	if (rserver->vmname[0] != 0) {
+		RSERVER_SET_VALUE("vmname", rserver->vmname);
+	}
+
+#undef RSERVER_SET_VALUE
+
+	syslog(LOG_INFO, "buff:%s\n", buff);
+	/* XXX : */
+	add_realserver_to_apppool(poolname, buff);
+
+	return 0;
+}
+#endif
+
+static void snmpwalk_nodes_save(struct list_head *head)
+{
+	struct appnode *appnode;
+	struct rsnode *rsnode;
+
+	struct apppool *apppool;
+	struct rserver *rserver;
+
+	LIST_HEAD(pool_queue);
+
+	char address[INET6_ADDRSTRLEN + 1 + 5 + 1] = {0};
+	char ip[INET6_ADDRSTRLEN] = {0};
+
+	/* traversal each appnode, get apppool name of snmp sched */
+	list_for_each_entry(appnode, head, list) {
+
+		module_get_queue(&pool_queue, "apppool", appnode->appname);
+		if (list_empty(&pool_queue)) {
+			continue;
+		}
+		/** get apppoop of rsnode->name **/
+		apppool = list_entry(pool_queue.next, struct apppool, list);
+
+		/** check apppool rserver empty **/
+		if (list_empty(&apppool->realserver_head)) {
+			continue;
+		}
+
+		/* traversal each rsnode, get ip of real server */
+		list_for_each_entry(rsnode, &appnode->child_list, list) {
+		/* assign all equal to ip, avoid oversight */
+
+			/** get each address(ip:port) of apppool **/
+			list_for_each_entry(rserver, &apppool->realserver_head, list) {
+
+				/** get ip of real server **/
+				if (inet_sockaddr2address(&rserver->address, address) != 0) {
+					continue;
+				}
+				get_ip_port(address, ip, NULL);
+				if (memcmp(ip, rsnode->ip, strlen(rsnode->ip) + 1) == 0) {
+					/** assign to rserver weight **/
+					if (memcmp(rsnode->weight, "-1", sizeof("-1")) != 0) {
+						memcpy(rserver->weight, rsnode->weight, strlen(rsnode->weight) + 1);
+					} else {
+						continue;
+					}
+#if 1
+					do_realserver_config_modify(apppool->name, rserver);
+#endif
+				}
+			}
+		}
+	}
+	return;
+}
+
 static int snmpwalk_flush_vserver(void)
 {
 
@@ -366,20 +531,35 @@ static int snmpwalk_flush_vserver(void)
 		return -1;
 	} 
 
+	char procfile[sizeof("/proc/4294967295/status")];
+	sprintf(procfile, "/proc/%d/status", snmpwalk_pid);
+	if (access(procfile, F_OK) == 0) {
+		syslog(LOG_INFO, "%s exists\n", procfile);
+		goto util;
+	} else {
+		snmpwalk_pid = 0;
+		syslog(LOG_INFO, "%s not exits\n", procfile);
+	}
+
 	if ((pid = fork()) < 0) {
 		syslog(LOG_INFO, "fork error :%s %s %s %d\n",
 				strerror(errno), __FILE__, __func__, __LINE__);
+		snmpwalk_pid = 0;
 		return -1;
 	} else if (0 == pid) {
 		/* get cpu and mem result */
 		snmpwalk_get_data(&head);
 
 		/* save result to xml file */
+		snmpwalk_nodes_save(&head);
+
 		/* free node list */
 		destroy_nodes(&head);
 		exit(EXIT_SUCCESS);
+	} else {
+		snmpwalk_pid = pid;
 	}
-
+util:
 	return 0;
 }
 
