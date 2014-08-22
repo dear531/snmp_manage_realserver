@@ -281,6 +281,8 @@ static int snmpwalk_get_data(struct list_head *head)
 			}
 		}
 
+		module_purge_queue(&pool_queue, "apppool");
+
 		/**
 		 * whenever not exits ip address of apppool,
 		 * and delele current apppool node
@@ -291,6 +293,9 @@ static int snmpwalk_get_data(struct list_head *head)
 			appnode = NULL;
 		}
 	}
+
+	module_purge_queue(&queue, "vserver");
+
 	{	
 		struct epoll_event fdes[fdnum];
 		int fdmax = fdnum;
@@ -426,6 +431,7 @@ static int do_realserver_config_modify(char *poolname, struct rserver *rserver)
 	}
 
 #undef RSERVER_SET_VALUE
+	module_purge_queue(&pool_head, "apppool");
 
 	/**
 	 * XXX : immetiately call function
@@ -492,6 +498,7 @@ static void snmpwalk_nodes_save(struct list_head *head)
 				}
 			}
 		}
+		module_purge_queue(&pool_queue, "apppool");
 	}
 	return;
 }
