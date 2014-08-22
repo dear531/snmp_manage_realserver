@@ -237,6 +237,11 @@ static int snmpwalk_get_data(struct list_head *head)
 		/** get each address(ip:port) of apppool **/
 		list_for_each_entry(rserver, &apppool->realserver_head, list) {
 
+			/** util close snmp enable **/
+			if (memcmp(rserver->snmp_enable, "on", sizeof("on")) != 0) {
+				continue;
+			}
+
 			/** get ip of real server **/
 			if (inet_sockaddr2address(&rserver->address, address) != 0) {
 				continue;
@@ -478,25 +483,31 @@ static void snmpwalk_nodes_save(struct list_head *head)
 			/** get each address(ip:port) of apppool **/
 			list_for_each_entry(rserver, &apppool->realserver_head, list) {
 
+				/** util close snmp enable **/
+				if (memcmp(rserver->snmp_enable, "on", sizeof("on")) != 0) {
+					continue;
+				}
+
 				/** get ip of real server **/
 				if (inet_sockaddr2address(&rserver->address, address) != 0) {
 					continue;
 				}
 				get_ip_port(address, ip, NULL);
-				if (memcmp(ip, rsnode->ip, strlen(rsnode->ip) + 1) == 0) {
-					/** assign to rserver weight **/
-					if (memcmp(rsnode->weight, "-1", sizeof("-1")) != 0) {
-						memcpy(rserver->weight, rsnode->weight, strlen(rsnode->weight) + 1);
-					} else {
-						continue;
-					}
-
-					/*
-					 * XXX : immetiataly copy do_realserver_config_modify
-					 * and fix to used
-					 */
-					do_realserver_config_modify(apppool->name, rserver);
+				if (memcmp(ip, rsnode->ip, strlen(rsnode->ip) + 1) != 0) {
+					continue;
 				}
+				/** assign to rserver weight **/
+				if (memcmp(rsnode->weight, "-1", sizeof("-1")) != 0) {
+					memcpy(rserver->weight, rsnode->weight, strlen(rsnode->weight) + 1);
+				} else {
+					continue;
+				}
+
+				/*
+				 * XXX : immetiataly copy do_realserver_config_modify
+				 * and fix to used
+				 */
+				do_realserver_config_modify(apppool->name, rserver);
 			}
 		}
 		module_purge_queue(&pool_queue, "apppool");
