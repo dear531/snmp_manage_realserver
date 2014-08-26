@@ -59,6 +59,7 @@ struct daemon4_config * daemon4_config_get(void)
 	return &daemon4_config;
 }
 
+#if 1
 struct appnode {
 	/* apppool name */
 	char appname[64];
@@ -212,7 +213,7 @@ static int snmpwalk_get_data(struct list_head *head)
 
 		if (strlen(vserver->pool) == 0
 #if 1
-			|| memcmp(vserver->enable, "on", sizeof("on")) != 0
+			|| memcmp(vserver->alive_state, "up", sizeof("up")) != 0
 #endif
 			|| memcmp(vserver->sched, "snmp", sizeof("snmp")) != 0) {
 			continue;
@@ -560,6 +561,7 @@ static int snmpwalk_flush_vserver(void)
 util:
 	return 0;
 }
+#endif
 
 static void callback_connection(int epfd, int fd, struct event *e)
 {
@@ -576,8 +578,9 @@ static void callback_connection(int epfd, int fd, struct event *e)
 		generator_entrance中调用, * * by anhk, 2012-03-19 **/
 		//informer_entrance();
 	}
-
+#if 1
 	snmpwalk_flush_vserver();
+#endif
 
 
 out:
