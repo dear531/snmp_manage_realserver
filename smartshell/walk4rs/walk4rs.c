@@ -13,7 +13,6 @@
 
 #include <syslog.h>
 
-#if 1
 struct appnode {
 	/* apppool name */
 	char appname[64];
@@ -166,7 +165,7 @@ static int snmpwalk_get_data(struct list_head *head)
 	list_for_each_entry(vserver, &queue, list) {
 
 		if (strlen(vserver->pool) == 0
-#if 1
+#if 0
 			|| memcmp(vserver->alive_state, "up", sizeof("up")) != 0
 #endif
 			|| memcmp(vserver->sched, "snmp", sizeof("snmp")) != 0) {
@@ -303,11 +302,12 @@ static pid_t snmpwalk_pid = 0;
 static int do_realserver_config_modify(char *poolname, struct rserver *rserver)
 {
 	struct apppool *pool;
+	FILE *fp;
 	char buff[BUFSIZ];
 
 	char address[BUFSIZ];
 	inet_sockaddr2address(&rserver->address, address);
-	sprintf(buff, "%s",address);
+	sprintf(buff, "script4 system pool %s add realserver %s", poolname, address);
 
 #define RSERVER_SET_VALUE(x, value)					\
 	do {								\
@@ -392,13 +392,19 @@ static int do_realserver_config_modify(char *poolname, struct rserver *rserver)
 	}
 
 #undef RSERVER_SET_VALUE
-	module_purge_queue(&pool_head, "apppool");
+	fp = popen(buff, "r");
+	if (fp == NULL) {
+		fprintf(stderr, "Internal Error.\r\n");
+		return -1;
+	}
+	while (fgets(buff, BUFSIZ, fp) != NULL) {
+		printf("%s\n", buff);
+		if (!strcmp(buff, "EINVAL")) {
+			fprintf(stdout, "healthcheck error!\n");
+		}
+	}
+	pclose(fp);
 
-	/**
-	 * XXX : immetiately call function
-	 * add_realserver_to_apppool in smartcomm
-	 **/
-	add_realserver_to_apppool(poolname, buff);
 
 	return 0;
 }
@@ -515,15 +521,15 @@ static int snmpwalk_flush_vserver(void)
 util:
 	return 0;
 }
-#endif
 
 
 int main(int argc, char *argv[])
 {
-#if 1
-	snmpwalk_flush_vserver();
-	for ( ; ; )
-		pause();
-#endif
+	init_libcomm();
+
+	for ( ; ; ) {
+		snmpwalk_flush_vserver();
+		sleep(1);
+	}
 	return 0;
 }
