@@ -20,7 +20,7 @@ target="/SmartGrid/shell/"
 mtarget="\/SmartGrid\/shell\/"
 # compile code.
 
-for i in neighbor_adv script4 daemon4 auth crl_downloader console_login status upgrade_netmask vmware_daemon arp_check; do
+for i in neighbor_adv script4 daemon4 auth crl_downloader console_login status upgrade_netmask vmware_daemon arp_check walk4rs; do
 	make -C $i clean;
 	make -C $i ACTION=release VERSION=$VERSION || exit -1;
 done
