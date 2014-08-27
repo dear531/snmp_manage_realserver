@@ -5,11 +5,15 @@
 
 
 #include "common/module.h"
+#include "common/logger.h"
 #include "loadbalance/vserver.h"
 #include "common/list.h"
 #include "loadbalance/apppool.h"
 #include "loadbalance/snmpwalk.h"
 #include "common/base64.h"
+#include "smartlog.h"
+#include "walk4rs.h"
+#include "common/common.h"
 
 #include <syslog.h>
 
@@ -294,8 +298,6 @@ err:
 	return -1;
 }
 
-static pid_t snmpwalk_pid = 0;
-
 /**
  * 对realserver进行修改操作
  **/
@@ -476,35 +478,29 @@ static void snmpwalk_nodes_save(struct list_head *head)
 	return;
 }
 
-static int snmpwalk_flush_vserver(void)
+int main(int argc, char *argv[])
 {
+	SMT_LOG_INIT();
+	log_message("walk4rs start!");
 
-	struct list_head head = LIST_HEAD_INIT(head);
-	pid_t pid;
-	/* set ignore signal child, for do not zombie proccess */
-	if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {
-		syslog(LOG_INFO, "set child signal error:%s %s %s %d\n",
-				strerror(errno), __FILE__, __func__, __LINE__);
-		return -1;
-	} 
-
-	/* check snmpwalk child, if exists util else fork */
-	char procfile[sizeof("/proc/4294967295/status")];
-	sprintf(procfile, "/proc/%d/status", snmpwalk_pid);
-	if (access(procfile, F_OK) == 0) {
-		goto util;
-	} else {
-		snmpwalk_pid = 0;
+#define NDEBUG	1
+#ifdef NDEBUG
+	daemon(1, 1);
+#endif
+	if (lock_file("/var/run/walk4rs.pid") == -1) {
+		fprintf(stderr, "Message: %s is already running.\n", argv[0]);
+		goto out;
 	}
 
-	if ((pid = fork()) < 0) {
-	/** error **/
-		syslog(LOG_INFO, "fork error :%s %s %s %d\n",
-				strerror(errno), __FILE__, __func__, __LINE__);
-		snmpwalk_pid = 0;
-		return -1;
-	} else if (0 == pid) {
-	/** child proccess **/
+	struct list_head head = LIST_HEAD_INIT(head);
+
+	init_libcomm();
+
+	signal_handler(SIGPIPE, SIG_IGN);
+	signal_handler(SIGCHLD, SIG_IGN);
+
+
+	while(1) {
 		/* get cpu and mem result */
 		snmpwalk_get_data(&head);
 
@@ -513,23 +509,12 @@ static int snmpwalk_flush_vserver(void)
 
 		/* free node list */
 		destroy_nodes(&head);
-		exit(EXIT_SUCCESS);
-	} else {
-	/** perent proccess **/
-		snmpwalk_pid = pid;
 	}
-util:
-	return 0;
-}
+out:
+	ulog_fini();
 
+	log_message("walk4rs finish!");
+	SMT_LOG_FINI();
 
-int main(int argc, char *argv[])
-{
-	init_libcomm();
-
-	for ( ; ; ) {
-		snmpwalk_flush_vserver();
-		sleep(1);
-	}
 	return 0;
 }
