@@ -41,6 +41,7 @@ cp -af status/smartstatus .install
 cp -af neighbor_adv/na .install 
 cp -af upgrade_netmask/upgrade_netmask .install 
 cp -af arp_check/arp_check .install 
+cp -af walk4rs/walk4rs .install
 
 cat > $installfile << EOF
 #!/bin/sh
@@ -48,6 +49,7 @@ cat > $installfile << EOF
 killall -9 daemon4 > /dev/null 2>&1
 killall -9 crl_downloader > /dev/null 2>&1
 killall -9 smartstatus vmware_daemon > /dev/null 2>&1
+killall -9 walk4rs > /dev/null 2>&1
 
 mkdir -p $target
 sed -n '0,/^0011-ANHK-BLANK$/!p'  \$0 > .install.tgz
@@ -83,6 +85,9 @@ chmod a+s $target/smartstatus
 ##arp_check
 chmod 755 $target/arp_check
 
+## walk4rs
+chmod 755 $target/walk4rs
+
 ## execute upgrade_netmask
 $target/upgrade_netmask mask2bits
 
@@ -107,6 +112,7 @@ sed -i '/$mtarget/d' /etc/rc.local;
 echo "$target/daemon4" >> /etc/rc.local;
 echo "$target/crl_downloader" >> /etc/rc.local;
 echo "$target/vmware_daemon" >> /etc/rc.local;
+echo "$target/walk4rs" >> /etc/rc.local;
 
 ##add smartstatus to crontab
 result=\`grep -c 'smartstatus' /var/spool/cron/root 2>/dev/null\`
@@ -131,6 +137,7 @@ sed -i '3a kern.alert            /var/log/kern_alert' /etc/syslog.conf
 $target/daemon4;
 $target/crl_downloader;
 $target/vmware_daemon;
+$target/walk4rs
 
 exit;
 0011-ANHK-BLANK
