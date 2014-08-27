@@ -3,15 +3,8 @@
 CFLAGS ?= -g -Wall -Werror
 
 CFLAGS += -I ../../smartcommon -I /usr/include/libxml2 -I../../smartcommon/ -I../../smartlog 
-LDFLAGS = -lxml2 -lssl -lcrypto -lpthread -llog4c 
-CFLAGS += -I ../../vmware/
-CFLAGS += -I ../../vcenter/vm_vcenter/
-CFLAGS += -I /usr/include/vmware-vix
-CFLAGS += -I ../../xenserver/xenserver/
+LDFLAGS = -lxml2 -lcrypto -llog4c 
 
-LDFLAGS = -lxml2 -lssl -lcrypto -lpthread -llog4c
-LDFLAGS += -lxensrv -lxenserver
-LDFLAGS += -lvmware  -lvixAllProducts -ldl
 LDFLAGS += -lnetsnmp -L/SmartGrid/snmp/lib
 
 VPATH := ../../smartcommon/
