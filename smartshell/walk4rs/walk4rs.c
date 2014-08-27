@@ -169,7 +169,8 @@ static int snmpwalk_get_data(struct list_head *head)
 	list_for_each_entry(vserver, &queue, list) {
 
 		if (strlen(vserver->pool) == 0
-#if 0
+#define NDEBUG	1
+#if NDEBUG
 			|| memcmp(vserver->alive_state, "up", sizeof("up")) != 0
 #endif
 			|| memcmp(vserver->sched, "snmp", sizeof("snmp")) != 0) {
@@ -483,7 +484,6 @@ int main(int argc, char *argv[])
 	SMT_LOG_INIT();
 	log_message("walk4rs start!");
 
-#define NDEBUG	1
 #ifdef NDEBUG
 	daemon(1, 1);
 #endif
@@ -509,6 +509,7 @@ int main(int argc, char *argv[])
 
 		/* free node list */
 		destroy_nodes(&head);
+		usleep(1000 * 100);
 	}
 out:
 	ulog_fini();
