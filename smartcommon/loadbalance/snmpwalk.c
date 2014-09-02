@@ -670,6 +670,51 @@ int check_snmp(struct rserver *rserver, int mode)
 err:
 	return -1;
 }
+
+void iptables_snmpwalk_rs(struct list_head *head, int op)
+{
+	char cmd[BUFSIZ];
+#if 0
+	struct network *network;
+
+	/** 当没有配置网络白名单时，所有ip都可以访问 **/
+	if (list_empty(&snmp->network_head)) {
+		sprintf(cmd, "iptables %s INPUT -p udp --dport 161 -j ACCEPT >/dev/null 2>&1",
+				op == 1 ? "-A" : "-D");
+		system(cmd);
+
+		sprintf(cmd, "ip6tables %s INPUT -p udp --dport 161 -j ACCEPT >/dev/null 2>&1",
+				op == 1 ? "-A" : "-D");
+		system(cmd);
+		return;
+	}
+
+	list_for_each_entry(network, &snmp->network_head, list) {
+		if (strchr(network->ipaddr, ':') == NULL) {	// ipv4
+			sprintf(cmd, "iptables %s INPUT -s %s/%s -p udp --dport 161 -j ACCEPT",
+					op == 1 ? "-A" : "-D",
+					network->ipaddr, network->netmask);
+		} else {
+			sprintf(cmd, "ip6tables %s INPUT -s %s/%s -p udp --dport 161 -j ACCEPT",
+					op == 1 ? "-A" : "-D",
+					network->ipaddr, network->netmask);
+		}
+		system(cmd);
+	}
+#else
+	if (strchr("192.168.12.0", ':') == NULL) {	// ipv4
+		sprintf(cmd, "iptables %s INPUT -s %s/%s -p udp --sport 161 -j ACCEPT",
+				op == 1 ? "-A" : "-D",
+				"192.168.12.0", "24");
+	} else {
+		sprintf(cmd, "ip6tables %s INPUT -s %s/%s -p udp --sport 161 -j ACCEPT",
+				op == 1 ? "-A" : "-D",
+				"192.168.12.0", "24");
+	}
+	system(cmd);
+	/* system("iptables -A INPUT -s 192.168.12.0/24  -p udp  --sport 161 -j ACCEPT"); */
+#endif
+}
 #if 0
 
 int main(int argc, char *argv[])

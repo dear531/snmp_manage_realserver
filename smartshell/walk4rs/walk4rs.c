@@ -498,7 +498,8 @@ int main(int argc, char *argv[])
 
 	signal_handler(SIGPIPE, SIG_IGN);
 	signal_handler(SIGCHLD, SIG_IGN);
-
+	iptables_snmpwalk_rs(NULL, 0);
+	iptables_snmpwalk_rs(NULL, 1);
 
 	while(1) {
 		/* get cpu and mem result */
