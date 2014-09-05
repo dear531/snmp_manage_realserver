@@ -37,7 +37,6 @@ static int add_del_walk_rs_network(struct cli_def *cli, char *command, char *arg
 	snprintf(buff, BUFSIZ, "script4 system walknetwork %s %s", 
 			command, para);
 	system(buff);
-	fprintf(stdout, "buf:%s\n", buff);
 
 	return 0;
 }
