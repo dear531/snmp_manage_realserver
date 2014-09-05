@@ -58,6 +58,44 @@ int walk4rs_network_get_values(struct cli_def *cli, char **values)
 	return k;
 }
 
+static int walk4rsnetwork_print(struct list_head *queue)
+{
+	struct walk4rsnetwork *network;
+
+#define printf_format(attr, value)\
+	printf("| %-34s | %-29s |\n", attr, value);  \
+	printf("+--------------------------------------------------------------------+\n");
+
+		printf("+--------------------------------------------------------------------+\n");
+		printf("|          snmpwalk for real server ipaddress and netmask            |\n");
+		printf("+--------------------------------------------------------------------+\n");
+		printf("|           ipaddress                |           netmask             |\n");
+		printf("+--------------------------------------------------------------------+\n");
+
+	list_for_each_entry(network, queue, list) {
+			printf_format(network->ipaddr, network->netmask);
+	}
+
+#undef printf_format
+
+	return 0;
+
+}
+
+static int walk4rsnetwork_show(struct cli_def *cli, char *command, char *argv[], int argc)
+{
+	LIST_HEAD(queue);
+
+	if (strcmp(command, "show") == 0) {
+		module_get_queue(&queue, "walk4rsnetwork", NULL);
+	}
+
+	walk4rsnetwork_print(&queue);
+	module_purge_queue(&queue, "walk4rsnetwork");
+
+	return CLI_OK;
+}
+
 int walkrs_network_set_command(struct cli_def *cli, struct cli_command *parent)
 {
 	struct cli_command *walknetwork, *t, *p;
@@ -75,6 +113,10 @@ int walkrs_network_set_command(struct cli_def *cli, struct cli_command *parent)
 			MODE_EXEC, LIBCLI_POOL_SET_ADD_REALSERVER);
 	cli_command_add_argument(p, "<ipaddr/netmask>", check_walkrs_ip_netmask);
 	cli_command_setvalues_func(p, walk4rs_network_get_values, default_free_values);
+
+    t = cli_register_command(cli, walknetwork, "show", walk4rsnetwork_show, PRIVILEGE_PRIVILEGED, MODE_EXEC,
+            LIBCLI_SNMP_SET_SHOW);
+
 
 	return 0;
 }
