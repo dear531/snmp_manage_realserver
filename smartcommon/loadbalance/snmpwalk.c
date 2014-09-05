@@ -84,6 +84,12 @@ SOFTWARE.
 #define NETSNMP_DS_WALK_TIME_RESULTS     	        4
 #define NETSNMP_DS_WALK_DONT_GET_REQUESTED	        5
 #include "snmpwalk.h"
+#include "walk4rsnetwork.h"
+
+extern int module_get_queue(struct list_head *queue, const char *m_name, 
+		const char *name);
+extern void module_purge_queue(struct list_head *queue,
+		const char *m_name);
 
 oid             objid_mib[] = { 1, 3, 6, 1, 2, 1 };
 int             numprinted = 0;
@@ -702,17 +708,23 @@ void iptables_snmpwalk_rs(struct list_head *head, int op)
 		system(cmd);
 	}
 #else
-	if (strchr("192.168.12.0", ':') == NULL) {	// ipv4
-		sprintf(cmd, "iptables %s INPUT -s %s/%s -p udp --sport 161 -j ACCEPT",
-				op == 1 ? "-A" : "-D",
-				"192.168.12.0", "24");
-	} else {
-		sprintf(cmd, "ip6tables %s INPUT -s %s/%s -p udp --sport 161 -j ACCEPT",
-				op == 1 ? "-A" : "-D",
-				"192.168.12.0", "24");
-	}
-	system(cmd);
+    struct walk4rsnetwork *network;
+	LIST_HEAD(queue);
+    module_get_queue(&queue, "walk4rsnetwork", NULL);
+	list_for_each_entry(network, &queue, list) {
+		if (strchr(network->ipaddr, ':') == NULL) {	// ipv4
+			sprintf(cmd, "iptables %s INPUT -s %s/%s -p udp --sport 161 -j ACCEPT",
+					op == 1 ? "-A" : "-D",
+					network->ipaddr, network->netmask);
+		} else {
+			sprintf(cmd, "ip6tables %s INPUT -s %s/%s -p udp --sport 161 -j ACCEPT",
+					op == 1 ? "-A" : "-D",
+					network->ipaddr, network->netmask);
+		}
+		system(cmd);
 	/* system("iptables -A INPUT -s 192.168.12.0/24  -p udp  --sport 161 -j ACCEPT"); */
+	}
+    module_purge_queue(&queue, "walk4rsnetwork");
 #endif
 }
 #if 0
