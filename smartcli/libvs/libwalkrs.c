@@ -2,6 +2,8 @@
 #include "libcli/str_desc.h"
 #include "common/dependence.h"
 #include "common/common.h"
+#include "loadbalance/walk4rsnetwork.h"
+#include "common/module.h"
 
 int check_walkrs_ip_netmask(struct cli_def *cli, struct cli_command *c, char *value)
 {
@@ -40,6 +42,22 @@ static int add_del_walk_rs_network(struct cli_def *cli, char *command, char *arg
 
 	return 0;
 }
+
+int walk4rs_network_get_values(struct cli_def *cli, char **values)
+{
+	int k = 0;
+	struct walk4rsnetwork *network;
+	LIST_HEAD(queue);
+
+	module_get_queue(&queue, "walk4rsnetwork", NULL);
+	list_for_each_entry(network, &queue, list) {
+		values[k++] = strdup(network->ipaddr);
+	}
+	module_purge_queue(&queue, "walk4rsnetwork");
+
+	return k;
+}
+
 int walkrs_network_set_command(struct cli_def *cli, struct cli_command *parent)
 {
 	struct cli_command *walknetwork, *t, *p;
@@ -56,7 +74,7 @@ int walkrs_network_set_command(struct cli_def *cli, struct cli_command *parent)
 	p = cli_register_command(cli, t, "network", add_del_walk_rs_network, PRIVILEGE_PRIVILEGED,
 			MODE_EXEC, LIBCLI_POOL_SET_ADD_REALSERVER);
 	cli_command_add_argument(p, "<ipaddr/netmask>", check_walkrs_ip_netmask);
-	cli_command_setvalues_func(p, NULL, NULL);
+	cli_command_setvalues_func(p, walk4rs_network_get_values, default_free_values);
 
 	return 0;
 }
