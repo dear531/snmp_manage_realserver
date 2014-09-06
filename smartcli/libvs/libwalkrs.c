@@ -100,22 +100,22 @@ int walkrs_network_set_command(struct cli_def *cli, struct cli_command *parent)
 {
 	struct cli_command *walknetwork, *t, *p;
 	walknetwork = cli_register_command(cli, parent, "walknetwork", NULL, PRIVILEGE_PRIVILEGED,
-			MODE_FOLDER, LIBCLI_POOL_MANAGE_INFO);
+			MODE_FOLDER, LIBCLI_SNMPWALK_MANAGE_INFO);
 	t = cli_register_command(cli, walknetwork, "add", NULL, PRIVILEGE_PRIVILEGED,
-			MODE_EXEC, LIBCLI_POOL_SET_ADD_REALSERVER);
+			MODE_EXEC, LIBCLI_SNMPWALK_SET_ADD_NETWORK);
 	p = cli_register_command(cli, t, "network", add_del_walk_rs_network, PRIVILEGE_PRIVILEGED,
-			MODE_EXEC, LIBCLI_POOL_SET_ADD_REALSERVER);
+			MODE_EXEC, LIBCLI_SNMPWALK_SET_ADD_NETWORK);
 	cli_command_add_argument(p, "<ipv4: ipaddr/prefix; ipv6: ipaddr/prefix>", check_walkrs_ip_netmask);
 
 	t = cli_register_command(cli, walknetwork, "del", NULL, PRIVILEGE_PRIVILEGED,
-			MODE_EXEC, LIBCLI_POOL_SET_ADD_REALSERVER);
+			MODE_EXEC, LIBCLI_SNMPWALK_SET_DEL_NETWARK);
 	p = cli_register_command(cli, t, "network", add_del_walk_rs_network, PRIVILEGE_PRIVILEGED,
-			MODE_EXEC, LIBCLI_POOL_SET_ADD_REALSERVER);
+			MODE_EXEC, LIBCLI_SNMPWALK_SET_DEL_NETWARK);
 	cli_command_add_argument(p, "<ipaddr/netmask>", check_walkrs_ip_netmask);
 	cli_command_setvalues_func(p, walk4rs_network_get_values, default_free_values);
 
     t = cli_register_command(cli, walknetwork, "show", walk4rsnetwork_show, PRIVILEGE_PRIVILEGED, MODE_EXEC,
-            LIBCLI_SNMP_SET_SHOW);
+            LIBCLI_SNMPWALK_SET_SHOW);
 
 
 	return 0;

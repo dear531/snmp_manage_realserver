@@ -3533,4 +3533,22 @@ static struct str_desc str_desc [] = {
 		.en = "Show LLB SNAT information",
 		.cn = "展示智能SNAT的信息",
 	},
+
+	/*********** snmpwalk for real server ***********/
+	[ LIBCLI_SNMPWALK_MANAGE_INFO ] = {
+		.en = "Manage snmpwalk for real server",
+		.cn = "管理获取真实服务器状态信息",
+	},
+	[ LIBCLI_SNMPWALK_SET_ADD_NETWORK ] = {
+		.en = "Add snmpwalk network inport",
+		.cn = "添加snmpwalk真实服务器白名单",
+	},
+	[ LIBCLI_SNMPWALK_SET_DEL_NETWARK ] = {
+		.en = "delete snmpwalk network inport",
+		.cn = "删除snmpwalk真实服务器白名单",
+	},
+	[ LIBCLI_SNMPWALK_SET_SHOW ] = {
+		.en = "Show snmpwalk network information",
+		.cn = "查看snmpwalk白名单",
+	},
 };
