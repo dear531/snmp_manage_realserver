@@ -3539,16 +3539,62 @@ static struct str_desc str_desc [] = {
 		.en = "Manage snmpwalk for real server",
 		.cn = "管理获取真实服务器状态信息",
 	},
+
 	[ LIBCLI_SNMPWALK_SET_ADD_NETWORK ] = {
 		.en = "Add snmpwalk network inport",
 		.cn = "添加snmpwalk真实服务器白名单",
 	},
+
 	[ LIBCLI_SNMPWALK_SET_DEL_NETWARK ] = {
 		.en = "delete snmpwalk network inport",
 		.cn = "删除snmpwalk真实服务器白名单",
 	},
+
 	[ LIBCLI_SNMPWALK_SET_SHOW ] = {
 		.en = "Show snmpwalk network information",
 		.cn = "查看snmpwalk白名单",
 	},
+
+	/******* snmpwalk set fied of real server *******/
+
+	[ LIBCLI_RSERVER_SNMPWALK_CHECK ] = {
+		.en = "snmpwalk check status for real server",
+		.cn = "snmpwalk 检查并自动设置snmpwalk标志位",
+	},
+
+	[ LIBCLI_RSERVER_SNMPWALK_VERSION ] = {
+		.en = "set snmpwalk version of real server",
+		.cn = "设置获取真实服务器信息所支持的snmp协议版本",
+	},
+
+	[ LIBCLI_RSERVER_SNMPWALK_SECURELEVEL ] = {
+		.en = "set snmpwalk securelevel of real server",
+		.cn = "设置获取真实服务器信息所支持的snmp安全层算法",
+	},
+
+	[ LIBCLI_RSERVER_SNMPWALK_AUTHPROTOCOL ] = {
+		.en = "set snmpwalk authprotocol of real server",
+		.cn = "设置获取真实服务器信息所支持的snmp加密算法",
+	},
+
+	[ LIBCLI_RSERVER_SNMPWALK_USER ] = {
+		.en = "set snmpwalk user information of real server",
+		.cn = "设置获取真实服务器snmp协议用户名和密码",
+	},
+
+	[ LIBCLI_RSERVER_SNMPWALK_PASSWORD ] = {
+		.en = "set snmpwalk password of real server",
+		.cn = "设置获取真实服务器snmp密码",
+	},
+
+	[ LIBCLI_RSERVER_SNMPWALK_CPU ] = {
+		.en = "set snmpwalk cpu number of real server",
+		.cn = "设置真实服务器cpu所占计算比例",
+	},
+
+	[ LIBCLI_RSERVER_SNMPWALK_MEMORY ] = {
+		.en = "set snmpwalk memory number of real server",
+		.cn = "设置真实服务器memory所占计算比例",
+	},
+
 };
