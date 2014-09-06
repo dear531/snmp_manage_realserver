@@ -504,16 +504,21 @@ int main(int argc, char *argv[])
 	iptables_snmpwalk_rs(NULL, 0);
 	iptables_snmpwalk_rs(NULL, 1);
 
+	int sleep_flag;
 	while(1) {
 		/* get cpu and mem result */
 		snmpwalk_get_data(&head);
+
+		sleep_flag = list_empty(&head);
 
 		/* save result to xml file */
 		snmpwalk_nodes_save(&head);
 
 		/* free node list */
 		destroy_nodes(&head);
-		usleep(1000 * 100);
+
+		if (sleep_flag)
+			usleep(1000 * 100);
 	}
 out:
 	ulog_fini();
