@@ -235,6 +235,7 @@ static int snmpwalk_get_data(struct list_head *head)
 				write(rsnode->pfd[1], &ret, sizeof(ret));
 				close(rsnode->pfd[1]);
 				destroy_nodes(head);
+				close(epfd);
 				exit(EXIT_SUCCESS);
 			} else {
 			/** perent proccess **/
@@ -294,6 +295,7 @@ static int snmpwalk_get_data(struct list_head *head)
 			}
 		}
 	}
+	close(epfd);
 
 	return 0;
 err:
