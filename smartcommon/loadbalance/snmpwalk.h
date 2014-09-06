@@ -35,5 +35,4 @@ struct mibarg {
  */
 extern int mibs_snmpwalk(int snmp_argc, char *snmp_argv[], int mib_argc, struct mibarg *mib_argv, int flag);
 extern int check_snmp(struct rserver *rserver, int mode);
-extern void iptables_snmpwalk_rs(struct list_head *head, int op);
 #endif

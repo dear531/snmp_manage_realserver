@@ -14,6 +14,7 @@
 #include "smartlog.h"
 #include "walk4rs.h"
 #include "common/common.h"
+#include "loadbalance/walk4iptables.h"
 
 #include <syslog.h>
 

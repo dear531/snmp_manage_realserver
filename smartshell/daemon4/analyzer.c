@@ -33,6 +33,7 @@
 #include "loadbalance/rule.h"
 #include "loadbalance/under_gslb.h"
 #include "loadbalance/vcenter.h"
+#include "loadbalance/walk4iptables.h"
 #include "certificate/certcomm.h"
 #include "certificate/certificate.h"
 #include "certificate/crl.h"
@@ -821,9 +822,13 @@ static int analyzer_system_walk4rs(char *cmdarg, struct event *e)
 	sscanf(cmdarg, "%s %s %s", op, key, value);
 
 	if (strcmp(op, "add") == 0 && strcmp(key, "network") == 0) {
+		iptables_snmpwalk_rs(NULL, 0);
 		ret = module_set("walk4rsnetwork", value, op, key);
+		iptables_snmpwalk_rs(NULL, 1);
 	} else if (strcmp(op, "del") == 0 && strcmp(key, "network") == 0) {
+		iptables_snmpwalk_rs(NULL, 0);
 		ret = module_delete("walk4rsnetwork", value);
+		iptables_snmpwalk_rs(NULL, 1);
 	} else {
 		return -1;
 	}
