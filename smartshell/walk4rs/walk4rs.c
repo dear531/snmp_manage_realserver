@@ -396,6 +396,7 @@ static int do_realserver_config_modify(char *poolname, struct rserver *rserver)
 	if (rserver->vmname[0] != 0) {
 		RSERVER_SET_VALUE("vmname", rserver->vmname);
 	}
+	module_purge_queue(&pool_head, "apppool");
 
 #undef RSERVER_SET_VALUE
 	fp = popen(buff, "r");
