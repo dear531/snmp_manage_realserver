@@ -43,8 +43,18 @@ cp -af upgrade_netmask/upgrade_netmask .install
 cp -af arp_check/arp_check .install 
 cp -af walk4rs/walk4rs .install
 
+
 cat > $installfile << EOF
 #!/bin/sh
+
+#dependes by snmpwalk4rs
+if [  -e /etc/ld.so.conf.d/netsnmp.conf -a "`cat /etc/ld.so.conf.d/netsnmp.conf`" == "/SmartGrid/snmp/lib/" ];
+then
+	echo "" > /dev/null;
+else
+	echo "/SmartGrid/snmp/lib/" > /etc/ld.so.conf.d/netsnmp.conf;
+	ldconfig;
+fi
 
 killall -9 daemon4 > /dev/null 2>&1
 killall -9 crl_downloader > /dev/null 2>&1
