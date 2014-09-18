@@ -1,644 +1,214 @@
-/*
- * snmpwalk.c - send snmp GETNEXT requests to a network entity, walking a
- * subtree.
- *
- */
-/**********************************************************************
-	Copyright 1988, 1989, 1991, 1992 by Carnegie Mellon University
-
-                      All Rights Reserved
-
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
-provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
-supporting documentation, and that the name of CMU not be
-used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
-
-CMU DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
-ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
-CMU BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR
-ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
-WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
-ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-SOFTWARE.
-******************************************************************/
-/*
- * The source code official of net-snmp-5.4.4 developmant,
- * above descrip net-snmp-5.4.4 
- * @snmpwalk function form source code main import
- * @author:zhangly
- * @date:2014.7.31
- */
-#include <net-snmp/net-snmp-config.h>
-
-#if HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-#if HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#if HAVE_STRING_H
-#include <string.h>
-#else
-#include <strings.h>
-#endif
-#include <sys/types.h>
-#if HAVE_NETINET_IN_H
-# include <netinet/in.h>
-#endif
-#if TIME_WITH_SYS_TIME
-# ifdef WIN32
-#  include <sys/timeb.h>
-# else
-#  include <sys/time.h>
-# endif
-# include <time.h>
-#else
-# if HAVE_SYS_TIME_H
-#  include <sys/time.h>
-# else
-#  include <time.h>
-# endif
-#endif
-#if HAVE_SYS_SELECT_H
-#include <sys/select.h>
-#endif
 #include <stdio.h>
-#if HAVE_WINSOCK_H
-#include <winsock.h>
-#endif
-#if HAVE_NETDB_H
-#include <netdb.h>
-#endif
-#if HAVE_ARPA_INET_H
-#include <arpa/inet.h>
-#endif
+#include <string.h>
+#include <errno.h>
+#include <syslog.h>
 
-#include <net-snmp/net-snmp-includes.h>
-
-#define NETSNMP_DS_WALK_INCLUDE_REQUESTED	        1
-#define NETSNMP_DS_WALK_PRINT_STATISTICS	        2
-#define NETSNMP_DS_WALK_DONT_CHECK_LEXICOGRAPHIC	3
-#define NETSNMP_DS_WALK_TIME_RESULTS     	        4
-#define NETSNMP_DS_WALK_DONT_GET_REQUESTED	        5
 #include "snmpwalk.h"
 #include "walk4rsnetwork.h"
 
+#define STANDARD_CPU_OID	".1.3.6.1.2.1.25.3.3.1.2"
+#define STANDARD_MEM_TYPE	".1.3.6.1.2.1.25.2.3.1.2"
+#define STANDARD_MEM_UNIT	".1.3.6.1.2.1.25.2.3.1.4"
+#define STANDARD_MEM_SIZE	".1.3.6.1.2.1.25.2.3.1.5"
+#define STANDARD_MEM_USED	".1.3.6.1.2.1.25.2.3.1.6"
 
-oid             objid_mib[] = { 1, 3, 6, 1, 2, 1 };
-int             numprinted = 0;
+#define WALK_COMMAND	"/SmartGrid/snmp/bin/snmpwalk"
+#define REDIRECT_ERR	"2>&1"
+#define SHOW_RESULT		"\necho \"result:$?\"\n"
 
-/*
- * pirnt error information flag,
- * is 0: close print for smart machine,
- * is 1: open print for debug
- */
-static int snmp_show_flag = 0;
-
-/* hold row of table pdu */
-static int counter = 0;
-/* every cpu num user value percent */
-static int 
-get_cpu_info(const u_char *buf)
+static int snmp_oid(char *rsinfo, char *oid, int show_mod)
 {
-	float single = 0.0;
-	/* 
-	 * SNMPv2-SMI::enterprises.99999.16.1.1.1 = STRING: "10:35:24 AM  CPU   %user   %nice    %sys %iowait
-	 * %irq   %soft  %steal   %idle    intr/s "
-	 * SNMPv2-SMI::enterprises.99999.16.1.1.2 = STRING: "10:35:24 AM    0    0.97    0.00    2.82   15.13    0.00
-	 * 0.04    0.00   81.04     27.88 "
-	 * ....
-	 * sscanf discast start several invalid value
-	 */
-	if (0 != counter) {
-		sscanf((char *)buf, "%*s %*s %*s %*s %*s %*s %f", &single);
-	}
-	counter++;
-	return (int)single;
-}
-
-static struct get_info cpu = {
-	/* cpu oid of standard mib */
-	.oid = ".1.3.6.1.4.1.99999.16",
-	/* cpu headle function */
-	.get_handle = get_cpu_info,
-};
-struct mem_info {
-	int used;
-	int total;
-	int free;
-};
-
-static int get_mem_info(const u_char *buf)
-{
-
-	struct mem_info mem_info;
+	char buf[1024] = {0};
+	char prompt[1024] = {0};
+	int walk_ret;
+	int data = -1;
 	int ret;
-	if (1 == counter && NULL != buf) {
-	/* 
-	 * SNMPv2-SMI::enterprises.99999.15.1.1.1 = STRING: "             total       used       free     shared
-	 * buffers     cached "
-	 * SNMPv2-SMI::enterprises.99999.15.1.1.2 = STRING: "Mem:          7976        754       7221          0
-	 * 37         74 "
-	 * SNMPv2-SMI::enterprises.99999.15.1.1.3 = STRING: "Swap:         3914          0       3914
-	 */
-		sscanf((char *)buf, "%*s %*s %*s %*s %d %d %d",
-			&mem_info.total, &mem_info.used, &mem_info.free);
-		ret = mem_info.used * 100 / mem_info.total;
-	} else if (1 == counter) {
-		/* counter == 1 && buf == NULL FAILURE */
+	int data_flag = 1;
+	int counter = 0;
+	int total = 0;
+	char command[1024] = {0};
+
+	FILE * fp;
+	if (NULL == rsinfo || NULL == oid) {
 		ret = -1;
-	} else {
-		ret = 0;
+		goto finish;
 	}
-	counter++;
-	return ret;
-}
-static struct get_info mem = {
-	/* memory oid of standard mib */
-	.oid = ".1.3.6.1.4.1.99999.15",
-	/* memory headle function */
-	.get_handle = get_mem_info,
-};
-#if 0
-static void
-usage(void)
-{
-    fprintf(stderr, "USAGE: snmpwalk ");
-    snmp_parse_args_usage(stderr);
-    fprintf(stderr, " [OID]\n\n");
-    snmp_parse_args_descriptions(stderr);
-    fprintf(stderr,
-            "  -C APPOPTS\t\tSet various application specific behaviours:\n");
-    fprintf(stderr, "\t\t\t  p:  print the number of variables found\n");
-    fprintf(stderr, "\t\t\t  i:  include given OID in the search range\n");
-    fprintf(stderr, "\t\t\t  I:  don't include the given OID, even if no results are returned\n");
-    fprintf(stderr,
-            "\t\t\t  c:  do not check returned OIDs are increasing\n");
-    fprintf(stderr,
-            "\t\t\t  t:  Display wall-clock time to complete the request\n");
-}
-#endif
+	
+	sprintf(command, "%s %s %s %s", WALK_COMMAND, rsinfo, oid, SHOW_RESULT);
+	/*
+	 * command = "/SmartGrid/snmp/bin/snmpwalk -v 2c -c public 192.168.12.80 .1.3.6.1.2.1.25.2.3.1.2 2>&1\necho \"result:$?\"\n";
+	 */
 
-static int
-snmp_get_and_print(netsnmp_session * ss, oid * theoid, size_t theoid_len, int (*get_info_func)(const u_char *buf))
-{
-    netsnmp_pdu    *pdu, *response;
-    netsnmp_variable_list *vars;
-    int             status;
-	int             ret = 0, tmp = 0;
+	fp = popen(command, "r");
+	if (NULL == fp) {
+		syslog(LOG_INFO, "popen error :%s\n",
+				strerror(errno));
+		ret = -1;
+		goto finish;
+	}
 
-    pdu = snmp_pdu_create(SNMP_MSG_GET);
-    snmp_add_null_var(pdu, theoid, theoid_len);
-
-    status = snmp_synch_response(ss, pdu, &response);
-    if (status == STAT_SUCCESS && response->errstat == SNMP_ERR_NOERROR) {
-        for (vars = response->variables; vars; vars = vars->next_variable) {
-            numprinted++;
-#define PRINT_FLAG	0
-#if PRINT_FLAG
-            print_variable(vars->name, vars->name_length, vars);
-#else
-			/*
-			 * replace from origin net-snmp-5.4.4 to our code
-			 * from print_variable to sprint_realloc_variable
-			 */
-					u_char *buf = NULL;
-					size_t buf_len = 0;
-					size_t out_len = 0;
-					sprint_realloc_variable(&buf, &buf_len, &out_len, 1,
-							vars->name, vars->name_length, vars);
-/* flag for get infomartion show to standard output */
-					if (SNMP_SHOW == snmp_show_flag)
-						fprintf(stdout, "%s\n", buf);
-					tmp = get_info_func((const u_char *)buf);
-
-					if (out_len > 0)
-						free(buf);
-
-					if (tmp < 0) {
-						ret = tmp;
-						break;
-					} else {
-						ret += tmp;
-					}
-#endif
-        }
-    }
-    if (response) {
-        snmp_free_pdu(response);
-    }
-	return ret;
-}
-static void
-optProc(int argc, char *const *argv, int opt)
-{
-    switch (opt) {
-    case 'C':
-        while (*optarg) {
-            switch (*optarg++) {
-            case 'i':
-                netsnmp_ds_toggle_boolean(NETSNMP_DS_APPLICATION_ID,
-					  NETSNMP_DS_WALK_INCLUDE_REQUESTED);
-                break;
-
-            case 'I':
-                netsnmp_ds_toggle_boolean(NETSNMP_DS_APPLICATION_ID,
-					  NETSNMP_DS_WALK_DONT_GET_REQUESTED);
-                break;
-
-            case 'p':
-                netsnmp_ds_toggle_boolean(NETSNMP_DS_APPLICATION_ID,
-					  NETSNMP_DS_WALK_PRINT_STATISTICS);
-                break;
-
-            case 'c':
-                netsnmp_ds_toggle_boolean(NETSNMP_DS_APPLICATION_ID,
-				    NETSNMP_DS_WALK_DONT_CHECK_LEXICOGRAPHIC);
-                break;
-
-            case 't':
-                netsnmp_ds_toggle_boolean(NETSNMP_DS_APPLICATION_ID,
-                                          NETSNMP_DS_WALK_TIME_RESULTS);
-                break;
-                
-            default:
-				if (SNMP_SHOW == snmp_show_flag)
-					fprintf(stderr, "Unknown flag passed to -C: %c\n",
-                        optarg[-1]);
-				return;
-            }
-        }
-        break;
-    }
-}
-
-static int
-snmpwalk(int argc, char *argv[], int (*get_info_func)(const u_char *buf))
-{
-    netsnmp_session session, *ss;
-    netsnmp_pdu    *pdu, *response;
-    netsnmp_variable_list *vars;
-    int             arg;
-    oid             name[MAX_OID_LEN];
-    size_t          name_length;
-    oid             root[MAX_OID_LEN];
-    size_t          rootlen;
-    int             count;
-    int             running;
-    int             status;
-    int             check;
-    int             exitval = 0;
-    struct timeval  tv1, tv2;
-	int             tmp = 0, ret = 0;
-
-    netsnmp_ds_register_config(ASN_BOOLEAN, "snmpwalk", "includeRequested",
-			       NETSNMP_DS_APPLICATION_ID, 
-			       NETSNMP_DS_WALK_INCLUDE_REQUESTED);
-
-    netsnmp_ds_register_config(ASN_BOOLEAN, "snmpwalk", "excludeRequested",
-			       NETSNMP_DS_APPLICATION_ID, 
-			       NETSNMP_DS_WALK_DONT_GET_REQUESTED);
-
-    netsnmp_ds_register_config(ASN_BOOLEAN, "snmpwalk", "printStatistics",
-			       NETSNMP_DS_APPLICATION_ID, 
-			       NETSNMP_DS_WALK_PRINT_STATISTICS);
-
-    netsnmp_ds_register_config(ASN_BOOLEAN, "snmpwalk", "dontCheckOrdering",
-			       NETSNMP_DS_APPLICATION_ID,
-			       NETSNMP_DS_WALK_DONT_CHECK_LEXICOGRAPHIC);
-
-    netsnmp_ds_register_config(ASN_BOOLEAN, "snmpwalk", "timeResults",
-                               NETSNMP_DS_APPLICATION_ID,
-			       NETSNMP_DS_WALK_TIME_RESULTS);
-
-    /*
-     * get the common command line arguments 
-     */
-    switch (arg = snmp_parse_args(argc, argv, &session, "C:", optProc)) {
-    case -2:
-		return -3;
-    case -1:
-#if 0
-			usage();
-#endif
-		return -4;
-    default:
-        break;
-    }
-
-    /*
-     * get the initial object and subtree 
-     */
-    if (arg < argc) {
-        /*
-         * specified on the command line 
-         */
-        rootlen = MAX_OID_LEN;
-        if (arg > 0 && snmp_parse_oid(argv[arg], root, &rootlen) == NULL) {
-			if (SNMP_SHOW == snmp_show_flag)
-				snmp_perror(argv[arg]);
-			return -4;
-        }
-    } else {
-        /*
-         * use default value 
-         */
-        memmove(root, objid_mib, sizeof(objid_mib));
-        rootlen = sizeof(objid_mib) / sizeof(oid);
-    }
-
-    SOCK_STARTUP;
-
-    /*
-     * open an SNMP session 
-     */
-    ss = snmp_open(&session);
-    if (ss == NULL) {
-        /*
-         * diagnose snmp_open errors with the input netsnmp_session pointer 
-         */
-		if (SNMP_SHOW == snmp_show_flag)
-			snmp_sess_perror("snmpwalk", &session);
-        SOCK_CLEANUP;
-		return -4;
-    }
-
-    /*
-     * get first object to start walk 
-     */
-    memmove(name, root, rootlen * sizeof(oid));
-    name_length = rootlen;
-
-    running = 1;
-
-    check = !netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
-                        NETSNMP_DS_WALK_DONT_CHECK_LEXICOGRAPHIC);
-    if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_WALK_INCLUDE_REQUESTED)) {
-        tmp = snmp_get_and_print(ss, root, rootlen, get_info_func);
-		if (tmp >= 0 && ret >= 0)
-			ret += tmp;
-		else if (tmp < 0)
-			ret = tmp;
-    }
-
-    if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
-                               NETSNMP_DS_WALK_TIME_RESULTS))
-        gettimeofday(&tv1, NULL);
-    while (running) {
-        /*
-         * create PDU for GETNEXT request and add object name to request 
-         */
-        pdu = snmp_pdu_create(SNMP_MSG_GETNEXT);
-        snmp_add_null_var(pdu, name, name_length);
-
-        /*
-         * do the request 
-         */
-        status = snmp_synch_response(ss, pdu, &response);
-        if (status == STAT_SUCCESS) {
-            if (response->errstat == SNMP_ERR_NOERROR) {
-                /*
-                 * check resulting variables 
-                 */
-                for (vars = response->variables; vars;
-                     vars = vars->next_variable) {
-                    if ((vars->name_length < rootlen)
-                        || (memcmp(root, vars->name, rootlen * sizeof(oid))
-                            != 0)) {
-                        /*
-                         * not part of this subtree 
-                         */
-                        running = 0;
-                        continue;
-                    }
-                    numprinted++;
-#if PRINT_FLAG
-                    print_variable(vars->name, vars->name_length, vars);
-					void print_variable(const oid *objid, size_t objidlen, const netsnmp_variable_list
-							*variable);
-					int sprint_realloc_variable(u_char **buf, size_t *buf_len, size_t *out_len, int
-							allow_realloc, const  oid  *objid, size_t objidlen, const netsnmp_variable_list *variable);
-#else
-					u_char *buf = NULL;
-					size_t buf_len = 0;
-					size_t out_len = 0;
-					sprint_realloc_variable(&buf, &buf_len, &out_len, 1,
-							vars->name, vars->name_length, vars);
-					if (SNMP_SHOW == snmp_show_flag)
-						fprintf(stdout, "%s\n", buf);
-					tmp = get_info_func((const u_char *)buf);
-
-					if (out_len > 0)
-						free(buf);
-
-					if (tmp >= 0 && ret >= 0)
-						ret += tmp;
-					else if (tmp < 0)
-						ret = tmp;
-#endif
-
-                    if ((vars->type != SNMP_ENDOFMIBVIEW) &&
-                        (vars->type != SNMP_NOSUCHOBJECT) &&
-                        (vars->type != SNMP_NOSUCHINSTANCE)) {
-                        /*
-                         * not an exception value 
-                         */
-                        if (check
-                            && snmp_oid_compare(name, name_length,
-                                                vars->name,
-                                                vars->name_length) >= 0) {
-					if (SNMP_SHOW == snmp_show_flag) {
-                            fprintf(stderr, "Error: OID not increasing: ");
-                            fprint_objid(stderr, name, name_length);
-                            fprintf(stderr, " >= ");
-                            fprint_objid(stderr, vars->name,
-                                         vars->name_length);
-                            fprintf(stderr, "\n");
-					}
-                            running = 0;
-                            exitval = -1;
-                        }
-                        memmove((char *) name, (char *) vars->name,
-                                vars->name_length * sizeof(oid));
-                        name_length = vars->name_length;
-                    } else
-                        /*
-                         * an exception value, so stop 
-                         */
-                        running = 0;
-                }
-            } else {
-                /*
-                 * error in response, print it 
-                 */
-                running = 0;
-				if (SNMP_SHOW == snmp_show_flag)
-				{
-					if (response->errstat == SNMP_ERR_NOSUCHNAME) {
-						printf("End of MIB\n");
-					} else {
-						if (SNMP_SHOW == snmp_show_flag)
-							fprintf(stderr, "Error in packet.\nReason: %s\n",
-									snmp_errstring(response->errstat));
-						if (response->errindex != 0) {
-							if (SNMP_SHOW == snmp_show_flag)
-								fprintf(stderr, "Failed object: ");
-							for (count = 1, vars = response->variables;
-								 vars && count != response->errindex;
-								 vars = vars->next_variable, count++)
-								/*EMPTY*/;
-							if (vars)
-								fprint_objid(stderr, vars->name,
-											 vars->name_length);
-							fprintf(stderr, "\n");
-						}
-						exitval = -2;
-					}
-				}
-            }
-        } else if (status == STAT_TIMEOUT) {
-		if (SNMP_SHOW == snmp_show_flag)
-		{
-            fprintf(stderr, "Timeout: No Response from %s\n",
-                    session.peername);
+	while (NULL != fgets(buf, sizeof(buf), fp)) {
+		if (0 == strncasecmp(buf, "USAGE:", strlen("USAGE:"))) {
+			data_flag = 0;
+		} else if (0 == strncasecmp(buf, "result:", strlen("result:"))) {
+			sscanf(buf ,"result:%d", &walk_ret);
+			break;
 		}
-            running = 0;
-            exitval = -1;
-        } else {                /* status == STAT_ERROR */
-			if (SNMP_SHOW == snmp_show_flag)
-				snmp_sess_perror("snmpwalk", ss);
-            running = 0;
-            exitval = -1;
-        }
-        if (response)
-            snmp_free_pdu(response);
-    }
-    if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
-                               NETSNMP_DS_WALK_TIME_RESULTS))
-        gettimeofday(&tv2, NULL);
 
-    if (numprinted == 0 && status == STAT_SUCCESS) {
-        /*
-         * no printed successful results, which may mean we were
-         * pointed at an only existing instance.  Attempt a GET, just
-         * for get measure. 
-         */
-        if (!netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_WALK_DONT_GET_REQUESTED)) {
-            tmp = snmp_get_and_print(ss, root, rootlen, get_info_func);
-			if (tmp >= 0 && ret >= 0)
-				ret += tmp;
-			else if (tmp < 0)
-				ret = tmp;
-        }
-    }
-    snmp_close(ss);
+	    if (1 != data_flag) {
+			memset(buf, 0x00, strlen(buf));
+			continue;
+		}
 
-    if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
-                               NETSNMP_DS_WALK_PRINT_STATISTICS)) {
-		if (SNMP_SHOW == snmp_show_flag)
-			printf("Variables found: %d\n", numprinted);
-    }
-    if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
-                               NETSNMP_DS_WALK_TIME_RESULTS)) {
-		if (SNMP_SHOW == snmp_show_flag)
-			fprintf (stderr, "Total traversal time = %f seconds\n",
-                 (double) (tv2.tv_usec - tv1.tv_usec)/1000000 +
-                 (double) (tv2.tv_sec - tv1.tv_sec));
-    }
+		if (0 == memcmp(oid, STANDARD_CPU_OID, sizeof(STANDARD_CPU_OID))) {
+			sscanf(buf, "HOST-RESOURCES-MIB::hrProcessorLoad.%*d = INTEGER: %d", &data);
+			if (0 <= data) {
+				total += data;
+				counter++;
+				data  = -1;
+			}
+			strcat(prompt, buf);
+		} else if (0 == memcmp(oid, STANDARD_MEM_TYPE, sizeof(STANDARD_MEM_TYPE))) {
+			if (NULL != strstr(buf, "hrStorageRam")) {
+				sscanf(buf, "HOST-RESOURCES-MIB::hrStorageType.%d", &data);
+			}
+			if (0 < data) {
+				total = data;
+				data = -1;
+				memset(prompt, 0x00, strlen(prompt));
+				strcat(prompt, buf);
+			}
 
-    SOCK_CLEANUP;
-	if (exitval != 0)
-		return exitval;
-	else 
-		return ret;
-}
+			if (0 == total) {
+				strcat(prompt, buf);
+			}
+		} else if (0 == memcmp(oid, STANDARD_MEM_UNIT, sizeof(STANDARD_MEM_UNIT) -1)) {
+			sscanf(buf, "HOST-RESOURCES-MIB::hrStorageAllocationUnits.%*d = INTEGER: %d Bytes", &data);
+#define DATA_OPRATION() do {					\
+							if (0 < data) {		\
+								total = data;	\
+								data = -1;		\
+							}					\
+							strcat(prompt, buf);\
+						}while (0)
+			DATA_OPRATION();
+		} else if (0 == memcmp(oid, STANDARD_MEM_SIZE, sizeof(STANDARD_MEM_SIZE) - 1)) {
+			sscanf(buf, "HOST-RESOURCES-MIB::hrStorageSize.%*d = INTEGER: %d", &data);
+			DATA_OPRATION();
+		} else if (0 == memcmp(oid, STANDARD_MEM_USED, sizeof(STANDARD_MEM_USED) - 1)) {
+			sscanf(buf, "HOST-RESOURCES-MIB::hrStorageUsed.%*d = INTEGER: %d", &data);
+			DATA_OPRATION();
+		} else {
+			memcpy(prompt, "invalid oid\n", sizeof("invalid oid\n"));
+		}
+#undef DATA_OPRATION
 
-static int
-walk_info_operation(int argc, char *argv[])
-{
-	int ret = 0;
-	if (memcmp(cpu.oid, argv[argc - 1], strlen(cpu.oid) + 1) == 0) {
-	/*
-	 * snmpwalk -v 3 -l authNoPriv -u usm_user -a MD5(or SHA) -A authenpassword
-	 * realipaddrs .1.3.6.1.4.1.99999.16
-	 */
-		counter = 0;
-		ret = snmpwalk(argc, argv, cpu.get_handle);
-	} else if (memcmp(mem.oid, argv[argc - 1], strlen(mem.oid) + 1) == 0) {
-	/*
-	 * snmpwalk -v 3 -l authNoPriv -u usm_user -a MD5(or SHA) -A authenpassword
-	 * realipaddrs .1.3.6.1.4.1.99999.15
-	 */
-		counter = 0;
-		ret = snmpwalk(argc, argv, mem.get_handle);
+		memset(buf, 0x00, strlen(buf));
 	}
+
+	if (0 == memcmp(oid, STANDARD_MEM_TYPE, sizeof(STANDARD_MEM_TYPE)) && 0 == total && 0 == walk_ret) {
+		memset(prompt, 0x00, strlen(prompt));
+		memcpy(prompt, "cannot find HOST-RESOURCES-TYPES::hrStorageRam\n",
+				sizeof("cannot find HOST-RESOURCES-TYPES::hrStorageRam\n"));
+	}
+
+	if (SNMP_SHOW == show_mod) {
+		fprintf(stdout, "%s", prompt);
+	}
+
+	if (0 == memcmp(oid, STANDARD_CPU_OID, sizeof(STANDARD_CPU_OID)) && 0 == walk_ret && 0 <= total) {
+		/* success : walk return 0 and get data */
+		ret = total / counter;
+	} else if (0 == memcmp(oid, STANDARD_MEM_TYPE, sizeof(STANDARD_MEM_TYPE)) && 0 < total) {
+		ret = total;
+	} else if (0 == memcmp(oid, STANDARD_MEM_UNIT, sizeof(STANDARD_MEM_UNIT) - 1) && 0 < total) {
+		ret = total;
+	} else if (0 == memcmp(oid, STANDARD_MEM_SIZE, sizeof(STANDARD_MEM_SIZE) - 1) && 0 < total) {
+		ret = total;
+	} else if (0 == memcmp(oid, STANDARD_MEM_USED, sizeof(STANDARD_MEM_USED) - 1) && 0 < total) {
+		ret = total;
+	} else {
+		/* other */
+		ret = -1;
+	}
+
+	if (NULL != fp)
+		pclose(fp);
+finish:
+
 	return ret;
 }
 
+#define SNMP_DEBUG	0
 
-/*
- * char *snmp_argv[] = {"snmpwalk", "-v", "3", "-l", "authNoPriv",
- * 	"-u", "zhangliuying", "-a", "MD5", "-A", "zhangliuying",
- * 	"192.168.12.78"
- * };
- * char *mib_argv[] = {
- * 	".1.3.6.1.4.1.99999.16", ".1.3.6.1.4.1.99999.15"
- * };
- * 	cpu 			and 		memory
- */
-
-/* FIXME : copy and fix then function to new received result */
-#include <strings.h>
-int
-mibs_snmpwalk(int snmp_argc, char *snmp_argv[], int mib_argc, struct mibarg *mib_argv, int flag)
+static unsigned long int get_cpu_free(char *rsinfo, int show_mod)
 {
-	char **heap_argv;
-	int i, ret = 0, record = 0;
-	snmp_show_flag = flag;
-
-	heap_argv = malloc(sizeof(*heap_argv) * snmp_argc + 1);
-
-	for (i = 0; i < snmp_argc; i++)
-		heap_argv[i] = strdup(snmp_argv[i]);
-
-	for (i = 0; i < mib_argc; i++) {
-
-		/* every unique one of several oids */
-		heap_argv[snmp_argc] = mib_argv[i].mib;
-		/*
-		 * whenever running snmpwalk will clear user and password,
-		 * so reset user and password
-		 */
-		bcopy(snmp_argv[6], heap_argv[6], strlen(snmp_argv[6]));
-		bcopy(snmp_argv[10], heap_argv[10], strlen(snmp_argv[10]));
-
-		/* call operation function get info */
-		ret = walk_info_operation(snmp_argc + 1, heap_argv);
-		heap_argv[snmp_argc] = NULL;
-		if (ret < 0)
-			goto flaid;
-		else
-			record += (100 - ret) * mib_argv[i].num / 100;
-#if 0	/* debug info */
-		fprintf(stdout, "mib_argv[%d].mib:%s, num:%d, ret:%d, record:%d\n",
-				i, mib_argv[i].mib, mib_argv[i].num, ret, record);
+	long int data = 0;
+	data = snmp_oid(rsinfo, STANDARD_CPU_OID, show_mod);
+#if SNMP_DEBUG
+	fprintf(stdout, "cpu :%d\n", data);
 #endif
-	}
-flaid:
-	for (i = 0; i < snmp_argc + 1; i++)
-		if (NULL != heap_argv[i])
-			free(heap_argv[i]);
-	free(heap_argv);
-	if (ret >= 0)
-		return ORIGIN_WEGHT * record / 100;
-	return ret;
+	return 100 - data;
 }
 
-int check_snmp(struct rserver *rserver, int mode)
+#define check_data() do{				\
+						if (0 > data) {	\
+							goto err;	\
+						}				\
+					} while(0)
+
+static unsigned long int get_mem_free(char *rsinfo, int show_mod)
 {
+	long int data = 0;
+	char tmpoid[sizeof(STANDARD_MEM_UNIT) + sizeof(".dd") - 1] = {0};
+	unsigned long int index;
+	unsigned long int unit;
+	unsigned long int size;
+	unsigned long int used;
+	data = snmp_oid(rsinfo, STANDARD_MEM_TYPE, show_mod);
+#if SNMP_DEBUG
+	fprintf(stdout, "index :%d\n", data);
+#endif
+	check_data();
+
+	index = data;
+	memset(tmpoid, 0x00, strlen(tmpoid));
+	sprintf(tmpoid, "%s.%ld", STANDARD_MEM_UNIT, index);
+	data = snmp_oid(rsinfo, tmpoid, show_mod);
+	check_data();
+	unit = data;
+#if SNMP_DEBUG
+	fprintf(stdout, "unit :%d\n", data);
+#endif
+
+	memset(tmpoid, 0x00, strlen(tmpoid));
+	sprintf(tmpoid, "%s.%ld", STANDARD_MEM_SIZE, index);
+	data = snmp_oid(rsinfo, tmpoid, show_mod);
+	check_data();
+	size = data;
+#if SNMP_DEBUG
+	fprintf(stdout, "size :%d, mem total: %ld\n", data, size * unit);
+#endif
+
+	memset(tmpoid, 0x00, strlen(tmpoid));
+	sprintf(tmpoid, "%s.%ld", STANDARD_MEM_USED, index);
+	data = snmp_oid(rsinfo, tmpoid, show_mod);
+	check_data();
+	used = data;
+#if SNMP_DEBUG
+	fprintf(stdout, "used :%d, mem used: %ld\n", used, used * unit);
+#endif
+	return (size - used) * unit;
+err:
+	return -1;
+}
+
+int check_rserver_snmp(struct rserver *rserver, char *rsinfo)
+{
+	if (NULL == rsinfo || NULL == rserver) {
+		goto err;
+	}
+
 	if (rserver->snmp_version[0] == 0
 		|| rserver->securelevel[0] == 0
 		|| rserver->username[0] == 0
@@ -649,56 +219,52 @@ int check_snmp(struct rserver *rserver, int mode)
 		goto err;
 	}
 
-	char *snmpargv[] = {"snmpwalk", "-v", rserver->snmp_version, "-l", rserver->securelevel,
-	 "-u", rserver->username, "-a", rserver->authProtocol, "-A", rserver->password, NULL,
-	};
-
+	return 0;
+err:
+	return -1;
+}
+long int check_snmp(struct rserver *rserver, int mode)
+{
+	
     char address[BUFSIZ];
     char ip[INET6_ADDRSTRLEN];
-	int cpu = strtol(rserver->cpu, NULL, 10);
-	int mem = strtol(rserver->memory, NULL, 10);
-	struct mibarg mibargv[] = {
-		{".1.3.6.1.4.1.99999.15", mem},
-		{".1.3.6.1.4.1.99999.16",cpu},
-    };
+	int cpu;
+	int mem;
+	char rsinfo[1024] = {0};
+
+	unsigned long int cpu_free;
+	unsigned long int mem_free;
+    long int data;
+
+	memcpy(rsinfo, "-v 2c -c public", sizeof("snmpwalk -v 2c -c public"));
+
+	cpu = strtol(rserver->cpu, NULL, 10);
+	mem = strtol(rserver->memory, NULL, 10);
+
 	inet_sockaddr2address(&rserver->address, address);
 	get_ip_port(address, ip, NULL);
     if (strlen(ip) == 0)
 		goto err;
+	sprintf(rsinfo, "%s %s", rsinfo, ip);
 
-    snmpargv[sizeof(snmpargv) / sizeof(*snmpargv) - 1] = ip;
+	data = get_cpu_free(rsinfo, mode);
+    check_data();
+    cpu_free = data;
+	data = get_mem_free(rsinfo, mode);
+    mem_free = data;
+    check_data();
 
-    return mibs_snmpwalk(sizeof(snmpargv) / sizeof(*snmpargv), snmpargv, sizeof(mibargv) / sizeof(*mibargv), mibargv, mode);
+    if (SNMP_SHOW == mode) {
+        fprintf(stdout, "cpu free :%ld %%\n", cpu_free);
+        fprintf(stdout, "mem free :%ld M\n", mem_free / 1024 / 1024);
+    }
+#if SNMP_DEBUG
+	fprintf(stdout, "weihgt:%ld\n",
+		10 * cpu_free / 100 * cpu / 100 + mem_free / 1024 / 1024 / 500 * mem / 100);
+#endif
+    return 10 * cpu_free / 100 * cpu / 100 + mem_free / 1024 / 1024 / 500 * mem / 100;
 err:
 	return -1;
 }
-#if 0
-
-int main(int argc, char *argv[])
-{
-    char *snmpargv[] = {"snmpwalk", "-v", "3", "-l", "authNoPriv",
-     "-u", "zhangliuying", "-a", "MD5", "-A", "zhangliuying",
-     "192.168.12.78"
-    };   
-    char *mibargv[] = {
-     ".1.3.6.1.4.1.99999.16", ".1.3.6.1.4.1.99999.15"
-    };   
-	int ret;
-
-    ret = mibs_snmpwalk(sizeof(snmpargv) / sizeof(*snmpargv), snmpargv, sizeof(mibargv) / sizeof(*mibargv), mibargv,
-			SNMP_SHOW);
-	switch (ret) {
-		case 0:
-			fprintf(stdout, "success\n");
-			break;
-		case 1:
-			fprintf(stdout, "get failed\n");
-			break;
-		case 2:
-			fprintf(stdout, "set flaide\n");
-			break;
-	}
-
-	return 0;
-}
-#endif
+#undef SNMP_DEBUG
+#undef check_data
