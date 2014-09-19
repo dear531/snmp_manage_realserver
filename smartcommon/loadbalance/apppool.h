@@ -61,6 +61,7 @@ struct rserver {
 		char password[64];		/* authencation password */
 		char cpu[32];			/* percent of cpu free */
 		char memory[32];		/* percent of memory free */
+		char snmp_weight[4];	/* snmp weight. eg:weight=cup*m%+mem*n% */
 	};
 };
 

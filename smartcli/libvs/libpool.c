@@ -339,6 +339,7 @@ static int do_realserver_config_modify(char *poolname, struct rserver *rserver)
 	RSERVER_SET_VALUE("password", rserver->password);
 	RSERVER_SET_VALUE("cpu", rserver->cpu);
 	RSERVER_SET_VALUE("memory", rserver->memory);
+	RSERVER_SET_VALUE("snmp_weight", rserver->snmp_weight);
 
 	/* get pool */
 	LIST_HEAD(pool_head);
@@ -612,6 +613,11 @@ static char * get_rserver_desc(struct rserver *rserver, char *desc)
 	if (rserver->memory[0] != 0) {
 		sprintf(desc, "%smemory=%s,",					\
 				desc, rserver->memory);
+	}
+
+	if (rserver->snmp_weight[0] != 0) {
+		sprintf(desc, "%ssnmp_weight=%s,",					\
+				desc, rserver->snmp_weight);
 	}
 
 	return desc;

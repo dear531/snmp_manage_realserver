@@ -288,6 +288,7 @@ static int realserver_analyse(xmlNodePtr pnode, struct list_head *list)
 	m_analyse_common(pnode, realserver, password);
 	m_analyse_common(pnode, realserver, cpu);
 	m_analyse_common(pnode, realserver, memory);
+	m_analyse_common(pnode, realserver, snmp_weight);
 
 	return 0;
 }
@@ -381,6 +382,7 @@ static int realserver_restore(xmlNodePtr pnode, struct list_head *list)
 	m_restore_common(pnode, realserver, password);
 	m_restore_common(pnode, realserver, cpu);
 	m_restore_common(pnode, realserver, memory);
+	m_restore_common(pnode, realserver, snmp_weight);
 
 	return 0;
 }
@@ -521,6 +523,7 @@ static int realserver_set(struct list_head *list, const char *name,
 	ZERO(password);		/* authencation password */
 	ZERO(cpu);
 	ZERO(memory);
+	ZERO(snmp_weight);
 
 #undef ZERO
 
@@ -625,6 +628,8 @@ static int realserver_set(struct list_head *list, const char *name,
 			set_value(token, rserver->cpu);
 		} else if (!strncasecmp(token, "memory=", 7)) {
 			set_value(token, rserver->memory);
+		} else if (!strncasecmp(token, "snmp_weight=", 12)) {
+			set_value(token, rserver->snmp_weight);
 		}
 
 		token = strtok(NULL, ",");

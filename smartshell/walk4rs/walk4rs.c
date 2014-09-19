@@ -33,7 +33,7 @@ struct rsnode {
 	/* ip address of real server */
 	char ip[INET6_ADDRSTRLEN];
 	int pfd[2];
-	char weight[4];
+	char snmp_weight[4];
 };
 
 static int check_pool_uniq(struct vserver *vserver, struct list_head *head)
@@ -275,7 +275,7 @@ static int snmpwalk_get_data(struct list_head *head)
 					if ((rsnode = search_list_by_fd(fdes[i].data.fd, head)) == NULL) {
 						syslog(LOG_INFO, "search file descriptor error\n");
 					} else {
-						sprintf(rsnode->weight, "%d", ret);
+						sprintf(rsnode->snmp_weight, "%d", ret);
 					}
 				} else if (n == 0) {
 				/* peel close */
@@ -363,6 +363,7 @@ static int do_realserver_config_modify(char *poolname, struct rserver *rserver)
 	RSERVER_SET_VALUE("password", rserver->password);
 	RSERVER_SET_VALUE("cpu", rserver->cpu);
 	RSERVER_SET_VALUE("memory", rserver->memory);
+	RSERVER_SET_VALUE("snmp_weight", rserver->snmp_weight);
 
 	/* get pool */
 	LIST_HEAD(pool_head);
@@ -464,9 +465,9 @@ static void snmpwalk_nodes_save(struct list_head *head)
 				if (memcmp(ip, rsnode->ip, strlen(rsnode->ip) + 1) != 0) {
 					continue;
 				}
-				/** assign to rserver weight **/
-				if (memcmp(rsnode->weight, "-1", sizeof("-1")) != 0) {
-					memcpy(rserver->weight, rsnode->weight, strlen(rsnode->weight) + 1);
+				/** assign to rserver snmp_weight **/
+				if (memcmp(rsnode->snmp_weight, "-1", sizeof("-1")) != 0) {
+					memcpy(rserver->snmp_weight, rsnode->snmp_weight, strlen(rsnode->snmp_weight) + 1);
 				} else {
 					continue;
 				}
