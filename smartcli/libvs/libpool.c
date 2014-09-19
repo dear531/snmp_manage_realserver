@@ -470,6 +470,9 @@ static char * get_pool_elastic_desc(struct apppool *pool, char *desc)
 	if (pool->alive_vm[0] != 0) {
 		sprintf(desc + strlen(desc), "alive_vm=%s,", pool->alive_vm);
 	}
+	if (pool->subjoinsched[0] != 0) {
+		sprintf(desc + strlen(desc), "subjoinsched=%s,", pool->subjoinsched);
+	}
 
 	return desc;
 }
@@ -1501,6 +1504,38 @@ static int pool_config_healthcheck(struct cli_def *cli,
 	return pool_config_arg1(cli, command, argv, argc);
 }
 
+static int subjoinsched_check(struct cli_def *cli,
+		char *command, char *argv[], int argc)
+{
+#if 1
+	struct apppool *apppool;
+	struct rserver *rserver;
+	LIST_HEAD(pool_queue);
+	char address[512] = {0};
+
+    module_get_queue(&pool_queue, "apppool", cli->folder->value);
+
+    apppool = list_first_entry(&pool_queue, struct apppool, list);
+
+    if (list_empty(&apppool->realserver_head)) {
+        goto err;
+    }
+
+    list_for_each_entry(rserver, &apppool->realserver_head, list) {
+        if (inet_sockaddr2address(&rserver->address, address) != 0
+            || memcmp(rserver->snmp_enable, "on", sizeof("on")) != 0) {
+            goto err;
+        }
+    }
+
+#endif
+	return CLI_OK;
+err:
+	fprintf(stderr, "snmp need by config real server\n");
+	return CLI_ERROR;
+
+}
+
 int pool_get_counts(struct cli_def *cli, char *poolname)
 {
 	int count = 0;
@@ -1811,6 +1846,14 @@ static int vmenable_set_default(struct cli_def *cli, char *command, char *argv[]
 	return CLI_OK;
 }
 
+static int subjoinsched_set_default(struct cli_def *cli, char *command, char *argv[],
+		int argc)
+{
+	pool_config_arg1(cli, command, argv, argc);
+	pool_configure_commands(cli, cli->folder->value);
+	return CLI_OK;
+}
+
 int pool_set_command(struct cli_def *cli, struct cli_command *parent)
 {
 	struct cli_command *pool, *t;
@@ -1845,6 +1888,13 @@ int pool_set_command(struct cli_def *cli, struct cli_command *parent)
 	cli_register_command(cli, t, "on", vmenable_set_default,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_POOL_SET_VM_ENABLE_ON);
 	cli_register_command(cli, t, "off", vmenable_set_default,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_POOL_SET_VM_ENABLE_OFF);
+
+	t = cli_register_command(cli, pool, "subjoinsched", subjoinsched_set_default,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_POOL_SET_VM_ENABLE);
+	cli_register_command(cli, t, "snmp", subjoinsched_check,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_POOL_SET_VM_ENABLE_ON);
+	cli_register_command(cli, t, "normal", NULL,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_POOL_SET_VM_ENABLE_OFF);
 
 
