@@ -5,8 +5,6 @@ CFLAGS ?= -g -Wall -Werror
 CFLAGS += -I ../../smartcommon -I /usr/include/libxml2 -I../../smartcommon/ -I../../smartlog 
 LDFLAGS = -lxml2 -lcrypto -llog4c 
 
-LDFLAGS += -lnetsnmp -L/SmartGrid/snmp/lib
-
 VPATH := ../../smartcommon/
 
 ifneq ($(ACTION), release)
@@ -26,14 +24,6 @@ all:walk4rs
 
 walk4rs: $(OBJS) ../../smartcommon/libcomm.a  ../../smartlog/liblog4c_user.a ../../vcenter/libvm_vcenter.a
 	cc $(LDFLAGS) -o $@ $^
-	@if [  -e /etc/ld.so.conf.d/netsnmp.conf -a "`cat /etc/ld.so.conf.d/netsnmp.conf`" == "/SmartGrid/snmp/lib/" ];\
-	then\
-		echo "" > /dev/null;\
-	else\
-		echo "/SmartGrid/snmp/lib/" > /etc/ld.so.conf.d/netsnmp.conf;\
-	ldconfig;\
-	fi
-
 
 -include .depend
 
