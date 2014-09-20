@@ -164,6 +164,7 @@ struct list_head *apppool_malloc(void)
 	memset(apppool, 0, sizeof(*apppool));
 	strcpy(apppool->type, "ipv4");
 	strcpy(apppool->vmenable, "off");
+	strcpy(apppool->subjoinsched, "normal");
 	INIT_LIST_HEAD(&apppool->realserver_head);
 	return &apppool->list;
 }
@@ -312,6 +313,7 @@ static int apppool_analyse(xmlNodePtr pnode, struct list_head *list)
 	m_analyse_common(pnode, apppool, vmdatacenter);
 	m_analyse_common(pnode, apppool, vmport);
 	m_analyse_common(pnode, apppool, alive_vm);
+	m_analyse_common(pnode, apppool, subjoinsched);
 	return 0;
 }
 
@@ -406,6 +408,7 @@ static int apppool_restore(xmlNodePtr pnode, struct list_head *list)
 	m_restore_common(pnode, apppool, vmdatacenter);
 	m_restore_common(pnode, apppool, vmport);
 	m_restore_common(pnode, apppool, alive_vm);
+	m_restore_common(pnode, apppool, subjoinsched);
 	return 0;
 }
 
@@ -748,6 +751,7 @@ static int apppool_set(struct list_head *list, const char *name,
 	m_set_common(apppool, vmdatacenter, attr, value);
 	m_set_common(apppool, vmport, attr, value);
 	m_set_common(apppool, alive_vm, attr, value);
+	m_set_common(apppool, subjoinsched, attr, value);
 	
 	if(strcmp(attr, "vmenable") == 0) {
 		

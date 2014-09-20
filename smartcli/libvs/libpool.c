@@ -1350,12 +1350,15 @@ static int pool_print_for_normal(struct apppool *apppool)
 			strcpy(buff, apppool->name);
 		}
 
+        char show_subjionsched[1024] = "subjionsched=";
+        strcat(show_subjionsched, apppool->subjoinsched);
+
 		/** show Pool line **/
 		struct show_fmt show_fmt[] = {
 			{12, buff},
 			{21, ""},
 			{12, apppool->healthcheck},
-			{29, ""},
+			{29, show_subjionsched},
 		};
 
 		show_line(show_fmt, sizeof(show_fmt) / sizeof(struct show_fmt));
