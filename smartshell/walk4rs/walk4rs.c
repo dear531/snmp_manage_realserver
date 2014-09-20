@@ -36,20 +36,6 @@ struct rsnode {
 	char snmp_weight[4];
 };
 
-static int check_pool_uniq(struct vserver *vserver, struct list_head *head)
-{
-	struct appnode *tmpnode;
-	list_for_each_entry(tmpnode, head, list) {
-		/* repaet not add */
-		if (memcmp(vserver->pool, tmpnode->appname, strlen(tmpnode->appname) + 1) == 0) {
-			/* failrue return -1, call function coutinue current */
-			return -1;
-		}
-	}
-	/* success return 0, call function go on */
-	return 0;
-}
-
 static int check_rserver_uniq(char *ip, struct list_head *head)
 {
 	struct rsnode *tmpnode;
@@ -69,7 +55,7 @@ static int check_rserver_uniq(char *ip, struct list_head *head)
  * vserver.pool-->appnode(init)-->list(head.list)
  **/
 static struct appnode*
-apppoll_appnode_list(struct vserver *vserver, struct list_head *head)
+apppool_to_appnode(struct apppool *apppool, struct list_head *head)
 {
 	struct appnode *appnode;
 	appnode = malloc(sizeof(*appnode));
@@ -79,7 +65,7 @@ apppoll_appnode_list(struct vserver *vserver, struct list_head *head)
 		goto err;
 	}
 
-	memcpy(appnode->appname, vserver->pool, strlen(vserver->pool) + 1);
+	memcpy(appnode->appname, apppool->name, strlen(apppool->name) + 1);
 	INIT_LIST_HEAD(&appnode->list);
 	INIT_LIST_HEAD(&appnode->child_list);
 
@@ -142,7 +128,6 @@ search_list_by_fd(int fd, struct list_head *head)
 
 static int snmpwalk_get_data(struct list_head *head)
 {
-	struct vserver *vserver;
 	struct apppool *apppool;
 	struct rserver *rserver;
 	struct appnode *appnode;
@@ -165,35 +150,22 @@ static int snmpwalk_get_data(struct list_head *head)
 	LIST_HEAD(pool_queue);
 	LIST_HEAD(queue);
 
-	module_get_queue(&queue, "vserver", NULL);
+	module_get_queue(&pool_queue, "apppool", NULL);
+	list_for_each_entry(apppool, &pool_queue, list) {
 
-	list_for_each_entry(vserver, &queue, list) {
-
-		if (strlen(vserver->pool) == 0
-#define NDEBUG	1
-#if NDEBUG
-			|| memcmp(vserver->alive_state, "up", sizeof("up")) != 0
-#endif
-			|| memcmp(vserver->sched, "snmp", sizeof("snmp")) != 0) {
+		if (memcmp(apppool->subjoinsched, "snmp", sizeof("snmp")) != 0) {
 			continue;
 		}
 
-		/** jump repeat pool of vserver **/
-		if (check_pool_uniq(vserver, head) < 0)
-			continue;
-
 		/** vserver.pool-->appnode(init)-->list(head.list) **/
-		if ((appnode = apppoll_appnode_list(vserver, head)) == NULL)
+		if ((appnode = apppool_to_appnode(apppool, head)) == NULL)
 			goto err;
-
-		/** get apppool used snmp **/
-		module_get_queue(&pool_queue, "apppool", vserver->pool);
-		apppool = list_entry(pool_queue.next, struct apppool, list);
 
 		/** check apppool rserver empty **/
 		if (list_empty(&apppool->realserver_head)) {
 			continue;
 		}
+
 		/** get each address(ip:port) of apppool **/
 		list_for_each_entry(rserver, &apppool->realserver_head, list) {
 
@@ -248,7 +220,6 @@ static int snmpwalk_get_data(struct list_head *head)
 			}
 		}
 
-		module_purge_queue(&pool_queue, "apppool");
 
 		/**
 		 * whenever not exits ip address of apppool,
@@ -260,8 +231,7 @@ static int snmpwalk_get_data(struct list_head *head)
 			appnode = NULL;
 		}
 	}
-
-	module_purge_queue(&queue, "vserver");
+	module_purge_queue(&pool_queue, "apppool");
 
 	{	
 		struct epoll_event fdes[fdnum];
@@ -489,6 +459,7 @@ int main(int argc, char *argv[])
 	SMT_LOG_INIT();
 	log_message("walk4rs start!");
 
+#define NDEBUG	1
 #ifdef NDEBUG
 	daemon(1, 1);
 #endif
