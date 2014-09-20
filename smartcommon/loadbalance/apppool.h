@@ -97,6 +97,7 @@ struct apppool {
 		char vmport[10];		/* used for vcenter */
 	};
 	char alive_vm[10]; /*used for Elastic*/
+	char subjoinsched[32];	/* subjoin schedule algorithms */
 };
 
 extern int module_init_apppool(void);
