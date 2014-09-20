@@ -1155,48 +1155,6 @@ static int vs_config_sched(struct cli_def *cli,
 	return CLI_OK;
 }
 
-static int vs_pool_rs_snmp_check(struct cli_def *cli,
-		char *command, char *argv[], int argc)
-{
-#if 1
-	struct vserver *vserver;
-	struct apppool *apppool;
-	struct rserver *rserver;
-	LIST_HEAD(queue);
-	LIST_HEAD(pool_queue);
-	char address[512] = {0};
-
-	module_get_queue(&queue, "vserver", cli->folder->value);
-
-	list_for_each_entry(vserver, &queue, list) {
-		if (strlen(vserver->pool) == 0) {
-			goto err;
-		}
-		module_get_queue(&pool_queue, "apppool", vserver->pool);
-		list_for_each_entry(apppool, &pool_queue, list) {
-			module_get_queue(&pool_queue, "apppool", vserver->pool);
-			if (list_empty(&apppool->realserver_head)) {
-				goto err;
-			}
-			list_for_each_entry(rserver, &apppool->realserver_head, list) {
-				if (inet_sockaddr2address(&rserver->address, address) != 0
-					|| memcmp(rserver->snmp_enable, "on", sizeof("on")) != 0) {
-					goto err;
-				}
-			}
-		}
-	}
-
-	if (vs_config_sched(cli, command, argv, argc) != CLI_OK) {
-		return CLI_ERROR;
-	}
-#endif
-	return CLI_OK;
-err:
-	fprintf(stderr, "snmp need by set apppool and config real server\n");
-	return CLI_ERROR;
-
-}
 static int vs_config_verify_client(struct cli_def *cli,
 		char *command, char *argv[], int argc)
 {
@@ -2084,8 +2042,6 @@ static int do_vserver_configure_sched_command(struct cli_def *cli,
 	t = cli_register_command(cli, root, "sched", vs_config_sched,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC,
 			LIBCLI_VSERVER_SET_SCHED_ALG);
-	cli_register_command(cli, t, "snmp", vs_pool_rs_snmp_check, PRIVILEGE_PRIVILEGED,
-			MODE_EXEC, LIBCLI_VSERVER_SET_SCHED_RR);
 	cli_register_command(cli, t, "rr", vs_config_sched, PRIVILEGE_PRIVILEGED,
 			MODE_EXEC, LIBCLI_VSERVER_SET_SCHED_RR);
 	cli_register_command(cli, t, "wrr", vs_config_sched, PRIVILEGE_PRIVILEGED,
