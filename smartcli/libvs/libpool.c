@@ -1350,8 +1350,11 @@ static int pool_print_for_normal(struct apppool *apppool)
 			strcpy(buff, apppool->name);
 		}
 
-        char show_subjionsched[1024] = "subjionsched=";
-        strcat(show_subjionsched, apppool->subjoinsched);
+        char show_subjionsched[1024] = {0};
+        if (0 != apppool->subjoinsched[0]) {
+            memcpy(show_subjionsched, "subjionsched=", sizeof("subjionsched="));
+            strcat(show_subjionsched, apppool->subjoinsched);
+        }
 
 		/** show Pool line **/
 		struct show_fmt show_fmt[] = {
