@@ -1915,11 +1915,11 @@ int pool_set_command(struct cli_def *cli, struct cli_command *parent)
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_POOL_SET_VM_ENABLE_OFF);
 
 	t = cli_register_command(cli, pool, "subjoinsched", subjoinsched_set_default,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_POOL_SET_VM_ENABLE);
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_POOL_SET_SCHED);
 	cli_register_command(cli, t, "snmp", subjoinsched_set_default,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_POOL_SET_VM_ENABLE_ON);
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_POOL_SET_SCHED_SNMP);
 	cli_register_command(cli, t, "normal", subjoinsched_set_default,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_POOL_SET_VM_ENABLE_OFF);
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_POOL_SET_SCHED_NORMAL);
 
 
 	return 0;

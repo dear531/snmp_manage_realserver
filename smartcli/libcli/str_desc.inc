@@ -877,6 +877,21 @@ static struct str_desc str_desc [] = {
     .cn = "配置AppPool的vmport",
   },
 
+  [ LIBCLI_POOL_SET_SCHED ] = {
+    .en = "Set the sched of pool",
+    .cn = "配置AppPool的sched",
+  },
+
+
+  [ LIBCLI_POOL_SET_SCHED_SNMP ] = {
+    .en = "Set the sched of pool as snmp",
+    .cn = "配置AppPool的sched为snmp",
+  },
+
+  [ LIBCLI_POOL_SET_SCHED_NORMAL ] = {
+    .en = "Set the sched of pool as normal",
+    .cn = "配置AppPool的sched为普通的手动设置",
+  },
 
 
 	[ LIBCLI_POOL_SET_HEALTHCHECK ] = {
