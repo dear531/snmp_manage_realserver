@@ -845,9 +845,15 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
                 } else {
                     fprintf(stdout, "securelevel needed by snmp version 3\n");
                 }
-			} else if (strncmp(command, "snmp authProtocol", 18) == 0) {
-                if (memcmp(rserver->securelevel, "authNoPriv", sizeof("authNoPriv")) == 0) {
-                    RSERVER_SET_VALUE(rserver->authProtocol, argc == 0 ? "md5" : argv[0]);
+			} else if (strncmp(command, "snmp authProtocol md5", 22) == 0
+                    || strncmp(command, "snmp authProtocol sha", 22) == 0) {
+                    char tmpcomm[32] = {0};
+                    sscanf(command, "%*s %*s %s", tmpcomm);
+                if (memcmp(rserver->securelevel, "auth", sizeof("auth") - 1) == 0) {
+                       if (0 == memcmp(tmpcomm, "md5", sizeof("md5"))
+                           || 0 == memcmp(tmpcomm, "sha", sizeof("sha"))) {
+                           RSERVER_SET_VALUE(rserver->authProtocol, tmpcomm);
+                       }
                 } else {
                     fprintf(stdout, "authprotocol needed by v3 and securelevel auth\n");
                 }
@@ -1064,14 +1070,6 @@ static int check_snmp_version(struct cli_def *cli, struct cli_command *c, char *
     }
     return CLI_ERROR;
 }
-static int check_snmp_authProtocol(struct cli_def *cli, struct cli_command *c, char *value)
-{
-    if (strncasecmp(value, "md5", sizeof("md5")) == 0
-        ||strncasecmp(value, "sha", sizeof("sha")) == 0) {
-        return CLI_OK;
-    }
-    return CLI_ERROR;
-}
 
 static int realserver_set_snmp_command(struct cli_def *cli, struct cli_command *parent)
 {
@@ -1091,7 +1089,12 @@ static int realserver_set_snmp_command(struct cli_def *cli, struct cli_command *
 
 	p = cli_register_command(cli, parent, "authProtocol", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_AUTHPROTOCOL);
-	cli_command_add_argument(p, "md5\tsha", check_snmp_authProtocol);
+
+	c = cli_register_command(cli, p, "md5", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+
+	c = cli_register_command(cli, p, "sha", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
 
 	p = cli_register_command(cli, parent, "user", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_USER);
