@@ -1073,9 +1073,45 @@ static int check_snmp_authProtocol(struct cli_def *cli, struct cli_command *c, c
     return CLI_ERROR;
 }
 
+static int realserver_set_snmp_command(struct cli_def *cli, struct cli_command *parent)
+{
+	struct cli_command *p, *c;
+	p = cli_register_command(cli, parent, "check", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_CHECK);
+
+	p = cli_register_command(cli, parent, "version", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_VERSION);
+	cli_command_add_argument(p, "3(default)", check_snmp_version);
+
+	p = cli_register_command(cli, parent, "securelevel", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_SECURELEVEL);
+
+	c = cli_register_command(cli, p, "authNoPriv", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+
+	p = cli_register_command(cli, parent, "authProtocol", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_AUTHPROTOCOL);
+	cli_command_add_argument(p, "md5\tsha", check_snmp_authProtocol);
+
+	p = cli_register_command(cli, parent, "user", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_USER);
+
+	p = cli_register_command(cli, parent, "password", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_PASSWORD);
+
+	p = cli_register_command(cli, parent, "cpu", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_CPU);
+	cli_command_add_argument(p, "<num:1-100>", check_cpu_mem_range);
+
+	p = cli_register_command(cli, parent, "memory", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_MEMORY);
+	cli_command_add_argument(p, "<num>:1-100", check_cpu_mem_range);
+
+	return 0;
+}
 static int realserver_set_command(struct cli_def *cli, struct cli_command *parent)
 {
-	struct cli_command *t, *p, *c, *d;
+	struct cli_command *t, *p, *c;
 	t = cli_register_command(cli, parent, "realserver", realserver_set_default, PRIVILEGE_PRIVILEGED,
 			MODE_FOLDER, LIBCLI_POOL_SET_SET_REALSERVER);
 	cli_command_add_argument(t, "<ip:port>", check_address_port);
@@ -1087,37 +1123,7 @@ static int realserver_set_command(struct cli_def *cli, struct cli_command *paren
 
 	p = cli_register_command(cli, t, "snmp", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_SNMP);
-
-	c = cli_register_command(cli, p, "check", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_CHECK);
-
-	c = cli_register_command(cli, p, "version", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_VERSION);
-	cli_command_add_argument(c, "3(default)", check_snmp_version);
-
-	c = cli_register_command(cli, p, "securelevel", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_SECURELEVEL);
-
-	d = cli_register_command(cli, c, "authNoPriv", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
-
-	c = cli_register_command(cli, p, "authProtocol", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_AUTHPROTOCOL);
-	cli_command_add_argument(c, "md5\tsha", check_snmp_authProtocol);
-
-	c = cli_register_command(cli, p, "user", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_USER);
-
-	c = cli_register_command(cli, p, "password", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_PASSWORD);
-
-	c = cli_register_command(cli, p, "cpu", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_CPU);
-	cli_command_add_argument(c, "<num:1-100>", check_cpu_mem_range);
-
-	c = cli_register_command(cli, p, "memory", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_MEMORY);
-	cli_command_add_argument(c, "<num>:1-100", check_cpu_mem_range);
+    realserver_set_snmp_command(cli, p);
 
 	/** limit maxconn/maxreq/bandwidth <value> **/
 	p = cli_register_command(cli, t, "limit", realserver_config_modify,
