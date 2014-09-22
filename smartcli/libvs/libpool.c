@@ -802,6 +802,8 @@ void zeroneedless(struct rserver *rserver)
 		ZERO_MEMBER(authProtocol);
 		ZERO_MEMBER(privProtocol);
 		ZERO_MEMBER(privPassword);
+		ZERO_MEMBER(username);
+		ZERO_MEMBER(password);
     }
     return;
 }
@@ -883,8 +885,13 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
                     continue;
                 }
 			} else if (strncmp(command, "snmp user", 9) == 0) {
-                snmp_user(rserver);
-                snmp_password(rserver);
+                if (memcmp(rserver->securelevel, "auth", sizeof("auth") - 1) == 0) {
+                    snmp_user(rserver);
+                    snmp_password(rserver);
+                } else {
+                    fprintf(stdout, "v3 and securelevel auth needed by user\n");
+                    continue;
+                }
 			} else if (strncmp(command, "snmp password", 13) == 0) {
                 snmp_password(rserver);
 			} else if (strncmp(command, "snmp cpu", 8) == 0) {
