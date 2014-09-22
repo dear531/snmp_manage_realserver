@@ -147,7 +147,7 @@ finish:
 							}				\
 						} while(0)
 
-static unsigned long int get_cpu_free(char *rsinfo, int show_mod)
+static long int get_cpu_free(char *rsinfo, int show_mod)
 {
 	long int data = 0;
 	data = snmp_oid(rsinfo, STANDARD_CPU_OID, show_mod);
@@ -162,13 +162,13 @@ err:
 	return -1;
 }
 
-static unsigned long int get_mem_free(char *rsinfo, int show_mod)
+static long int get_mem_free(char *rsinfo, int show_mod)
 {
 	char tmpoid[sizeof(STANDARD_MEM_UNIT) + sizeof(".dd") - 1] = {0};
-	unsigned long int index;
-	unsigned long int unit;
-	unsigned long int size;
-	unsigned long int used;
+	long int index;
+	long int unit;
+	long int size;
+	long int used;
 	index = snmp_oid(rsinfo, STANDARD_MEM_TYPE, show_mod);
 #if SNMP_DEBUG
     if (SNMP_SHOW == show_mod) {
@@ -250,8 +250,8 @@ long int check_snmp(struct rserver *rserver, int mode)
 	int mem;
 	char rsinfo[1024] = {0};
 
-	unsigned long int cpu_free;
-	unsigned long int mem_free;
+	long int cpu_free;
+	long int mem_free;
 	if (0 != create_rsinfo(rserver, rsinfo))
 		goto err;
 	//memcpy(rsinfo, "-v 2c -c public", sizeof("-v 2c -c public"));
