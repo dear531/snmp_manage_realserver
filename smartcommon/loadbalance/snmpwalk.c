@@ -210,12 +210,12 @@ err:
 	return -1;
 }
 
-int check_rserver_snmp(struct rserver *rserver, char *rsinfo)
+int create_rsinfo(struct rserver *rserver, char *rsinfo)
 {
 	if (NULL == rsinfo || NULL == rserver) {
 		goto err;
 	}
-
+#if 0
 	if (rserver->snmp_version[0] == 0
 		|| rserver->securelevel[0] == 0
 		|| rserver->username[0] == 0
@@ -223,6 +223,17 @@ int check_rserver_snmp(struct rserver *rserver, char *rsinfo)
 		|| rserver->password[0] == 0
 		|| rserver->cpu[0] == 0
 		|| rserver->memory[0] == 0) {
+		goto err;
+	}
+#endif
+	if (0 == memcmp(rserver->snmp_version, "3", sizeof("3"))) {
+		fprintf(stdout, "here snmp version fix me\n");
+		/* FIXME */
+	} else if (0 == memcmp(rserver->snmp_version, "2c", sizeof("2c"))
+			&& 0 != rserver->community[0]) {
+		sprintf(rsinfo, "-v %s -c %s", rserver->snmp_version,
+				rserver->community);
+	} else {
 		goto err;
 	}
 
@@ -241,8 +252,9 @@ long int check_snmp(struct rserver *rserver, int mode)
 
 	unsigned long int cpu_free;
 	unsigned long int mem_free;
-
-	memcpy(rsinfo, "-v 2c -c public", sizeof("snmpwalk -v 2c -c public"));
+	if (0 != create_rsinfo(rserver, rsinfo))
+		goto err;
+	//memcpy(rsinfo, "-v 2c -c public", sizeof("-v 2c -c public"));
 
 	cpu = strtol(rserver->cpu, NULL, 10);
 	mem = strtol(rserver->memory, NULL, 10);

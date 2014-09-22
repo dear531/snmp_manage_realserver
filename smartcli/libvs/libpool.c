@@ -411,6 +411,14 @@ static int check_cpu_mem_range(struct cli_def *cli, struct cli_command *c, char 
 	return CLI_OK;
 }
 
+static int check_community(struct cli_def *cli, struct cli_command *c, char *value)
+{
+    if (1 > strlen(value) || 31 < strlen(value)) {
+		return CLI_ERROR;
+	}
+	return CLI_OK;
+}
+
 static int apppool_queue_create(struct list_head *queue, const char *name)
 {
 	return module_get_queue(queue, "apppool", name);
@@ -780,6 +788,23 @@ int check_snmp_complete_set_snmp_enable(struct rserver *rserver)
     return -1;
 }
 
+#define ZERO_MEMBER(x) do{                                              \
+                        if (0 != rserver->x[0]) {                       \
+                            memset(rserver->x, 0x00, sizeof(rserver->x));\
+                        }                                               \
+                    } while(0)
+void zeroneedless(struct rserver *rserver)
+{
+    if (0 == memcmp(rserver->snmp_version, "3", sizeof("3"))) {
+        ZERO_MEMBER(community);
+    } else if (0 == memcmp(rserver->snmp_version, "2c", sizeof("2c"))) {
+		ZERO_MEMBER(securelevel);
+		ZERO_MEMBER(authProtocol);
+		ZERO_MEMBER(privProtocol);
+		ZERO_MEMBER(privPassword);
+    }
+    return;
+}
 static int _realserver_config_modify(struct cli_def *cli, char *command, char *argv[], int argc, char *poolname, char *rsaddr)
 {
 	struct apppool *apppool;
@@ -790,7 +815,7 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
 		return CLI_ERROR;
 	}
 
-	/** get pool **/
+        /** get pool **/
 	apppool_queue_create(&app_head, poolname);
 
 	list_for_each_entry(apppool, &app_head, list) {
@@ -838,44 +863,55 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
 				RSERVER_SET_VALUE(rserver->vmdatacenter, argv[0]);
 			} else if (strncmp(command, "snmp version", 12) == 0) {
                     RSERVER_SET_VALUE(rserver->snmp_version, argc == 0 ? "3" : argv[0]);
+                    zeroneedless(rserver);
 			} else if (strncmp(command, "snmp securelevel authNoPriv", 29) == 0) {
             /* at present only support authNoPriv, other later will be complete */
                 if (memcmp(rserver->snmp_version, "3", sizeof("3")) == 0) {
                     RSERVER_SET_VALUE(rserver->securelevel, argc == 0 ? "authNoPriv" : argv[0]);
                 } else {
-                    fprintf(stdout, "securelevel needed by snmp version 3\n");
+                    fprintf(stdout, "snmp version 3 needed by securelevel\n");
+                    continue;
                 }
 			} else if (strncmp(command, "snmp authProtocol md5", 22) == 0
                     || strncmp(command, "snmp authProtocol sha", 22) == 0) {
                     char tmpcomm[32] = {0};
                     sscanf(command, "%*s %*s %s", tmpcomm);
                 if (memcmp(rserver->securelevel, "auth", sizeof("auth") - 1) == 0) {
-                       if (0 == memcmp(tmpcomm, "md5", sizeof("md5"))
-                           || 0 == memcmp(tmpcomm, "sha", sizeof("sha"))) {
-                           RSERVER_SET_VALUE(rserver->authProtocol, tmpcomm);
-                       }
+                    RSERVER_SET_VALUE(rserver->authProtocol, tmpcomm);
                 } else {
-                    fprintf(stdout, "authprotocol needed by v3 and securelevel auth\n");
+                    fprintf(stdout, "v3 and securelevel auth needed by authprotocol\n");
+                    continue;
                 }
 			} else if (strncmp(command, "snmp user", 9) == 0) {
                 snmp_user(rserver);
                 snmp_password(rserver);
 			} else if (strncmp(command, "snmp password", 13) == 0) {
                 snmp_password(rserver);
+			} else if (strncmp(command, "snmp cpu", 8) == 0) {
+                RSERVER_SET_VALUE(rserver->cpu, argc == 0 ? "" : argv[0]);
+                if (strlen(rserver->cpu) > 0) {
+                    sprintf(rserver->memory, "%ld", 100 - strtol(argv[0], NULL, 10));
+                    fprintf(stdout, "auto set memory %s\n", rserver->memory);
+                }
+            } else if (strncmp(command, "snmp memory", 11) == 0) {
+                RSERVER_SET_VALUE(rserver->memory, argc == 0 ? "" : argv[0]);
+                if (strlen(rserver->memory) > 0) {
+                    sprintf(rserver->cpu, "%ld", 100 - strtol(argv[0], NULL, 10));
+                    fprintf(stdout, "auto set cpu %s\n", rserver->cpu);
+                }
+            } else if (strncmp(command, "snmp community", 14) == 0) {
+                if (strncmp(rserver->snmp_version, "2c", sizeof("2c")) == 0) {
+                    RSERVER_SET_VALUE(rserver->community, argv[0]);
+                } else {
+                    fprintf(stdout, "set version 2c by community\n");
+                    continue;
+                }
 			} else if (strncmp(command, "snmp check", 10) == 0) {
                 if (check_snmp_complete_set_snmp_enable(rserver) == 0)
                     RSERVER_SET_VALUE(rserver->snmp_enable, "on");
                 else
                     RSERVER_SET_VALUE(rserver->snmp_enable, "off");
-			} else if (strncmp(command, "snmp cpu", 8) == 0) {
-                RSERVER_SET_VALUE(rserver->cpu, argc == 0 ? "" : argv[0]);
-                if (strlen(rserver->cpu) > 0)
-                    sprintf(rserver->memory, "%ld", 100 - strtol(argv[0], NULL, 10));
-			} else if (strncmp(command, "snmp memory", 11) == 0) {
-				RSERVER_SET_VALUE(rserver->memory, argc == 0 ? "" : argv[0]);
-                if (strlen(rserver->memory) > 0)
-                    sprintf(rserver->cpu, "%ld", 100 - strtol(argv[0], NULL, 10));
-			}
+            }
 
 			do_realserver_config_modify(poolname, rserver);
 #undef RSERVER_SET_VALUE
@@ -885,6 +921,7 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
 
 	return CLI_OK;
 }
+#undef ZERO_MEMBER
 
 static int realserver_config_modify(struct cli_def *cli, char *command, char *argv[], int argc)
 {
@@ -1059,12 +1096,13 @@ static int realserver_set_default(struct cli_def *cli, char *command, char *argv
 
 static int check_snmp_version(struct cli_def *cli, struct cli_command *c, char *value)
 {
-#if 0 /* current only support version 3 */
+#if 0
     if (memcmp(value, "1", sizeof("1")) == 0
     || memcmp(value, "2c", sizeof("2c")) == 0
     || memcmp(value, "3", sizeof("3")) == 0) {
 #else
-    if (memcmp(value, "3", sizeof("3")) == 0) {
+    if (memcmp(value, "2c", sizeof("2c")) == 0
+        || memcmp(value, "3", sizeof("3")) == 0) {
 #endif
         return CLI_OK;
     }
@@ -1074,12 +1112,9 @@ static int check_snmp_version(struct cli_def *cli, struct cli_command *c, char *
 static int realserver_set_snmp_command(struct cli_def *cli, struct cli_command *parent)
 {
 	struct cli_command *p, *c;
-	p = cli_register_command(cli, parent, "check", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_CHECK);
-
 	p = cli_register_command(cli, parent, "version", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_VERSION);
-	cli_command_add_argument(p, "3(default)", check_snmp_version);
+	cli_command_add_argument(p, "2c\t3", check_snmp_version);
 
 	p = cli_register_command(cli, parent, "securelevel", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_SECURELEVEL);
@@ -1102,13 +1137,20 @@ static int realserver_set_snmp_command(struct cli_def *cli, struct cli_command *
 	p = cli_register_command(cli, parent, "password", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_PASSWORD);
 
+	p = cli_register_command(cli, parent, "community", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_MEMORY);
+	cli_command_add_argument(p, "STRING length:1-31", check_community);
+
 	p = cli_register_command(cli, parent, "cpu", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_CPU);
 	cli_command_add_argument(p, "<num:1-100>", check_cpu_mem_range);
 
-	p = cli_register_command(cli, parent, "memory", realserver_config_modify,
+    p = cli_register_command(cli, parent, "memory", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_MEMORY);
-	cli_command_add_argument(p, "<num>:1-100", check_cpu_mem_range);
+    cli_command_add_argument(p, "<num>:1-100", check_cpu_mem_range);
+
+	p = cli_register_command(cli, parent, "check", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_CHECK);
 
 	return 0;
 }
