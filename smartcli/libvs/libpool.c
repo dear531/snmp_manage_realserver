@@ -317,6 +317,8 @@ static int do_realserver_config_modify(char *poolname, struct rserver *rserver)
 	RSERVER_SET_VALUE("community", rserver->community);
 	/* SNMPv3 auth type, MD5 or SHA1 */
 	RSERVER_SET_VALUE("authProtocol", rserver->authProtocol);
+	RSERVER_SET_VALUE("privProtocol", rserver->privProtocol);
+	RSERVER_SET_VALUE("privPassword", rserver->privPassword);
 	/* noAuthNoPriv|authNoPriv|authPriv */
 	RSERVER_SET_VALUE("securelevel", rserver->securelevel);
 	/* control snmptrap */
@@ -565,6 +567,17 @@ static char * get_rserver_desc(struct rserver *rserver, char *desc)
 		sprintf(desc, "%sauthProtocol=%s,",				\
 				desc, rserver->authProtocol);
 	}
+
+	if (rserver->privProtocol[0] != 0) {
+		sprintf(desc, "%sprivProtocol=%s,",				\
+				desc, rserver->privProtocol);
+	}
+
+	if (rserver->privPassword[0] != 0) {
+		sprintf(desc, "%sprivPassword=%s,",				\
+				desc, rserver->privPassword);
+	}
+
 	/* control snmptrap */
 	if (rserver->trap_enable[0] != 0) {
 		sprintf(desc, "%strap_enable=%s,",				\
@@ -866,10 +879,12 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
 			} else if (strncmp(command, "snmp version", 12) == 0) {
                     RSERVER_SET_VALUE(rserver->snmp_version, argc == 0 ? "3" : argv[0]);
                     zeroneedless(rserver);
-			} else if (strncmp(command, "snmp securelevel authNoPriv", 29) == 0) {
-            /* at present only support authNoPriv, other later will be complete */
+			} else if (strncmp(command, "snmp securelevel authNoPriv", 29) == 0
+                    || strncmp(command, "snmp securelevel authPriv", 27) == 0) {
+                char tmpcomm[32] = {0};
+                sscanf(command, "%*s %*s %s", tmpcomm);
                 if (memcmp(rserver->snmp_version, "3", sizeof("3")) == 0) {
-                    RSERVER_SET_VALUE(rserver->securelevel, argc == 0 ? "authNoPriv" : argv[0]);
+                    RSERVER_SET_VALUE(rserver->securelevel, tmpcomm);
                 } else {
                     fprintf(stdout, "snmp version 3 needed by securelevel\n");
                     continue;
@@ -881,8 +896,17 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
                 if (memcmp(rserver->securelevel, "auth", sizeof("auth") - 1) == 0) {
                     RSERVER_SET_VALUE(rserver->authProtocol, tmpcomm);
                 } else {
-                    fprintf(stdout, "v3 and securelevel auth needed by authprotocol\n");
+                    fprintf(stdout, "v3 and securelevel authNoPriv or authPriv needed by authprotocol\n");
                     continue;
+                }
+			} else if (strncmp(command, "snmp privProtocol DES", 22) == 0
+                    || strncmp(command, "snmp privProtocol AES", 22) == 0) {
+                char tmpcomm[32] = {0};
+                sscanf(command, "%*s %*s %s", tmpcomm);
+                if (memcmp(rserver->securelevel, "authPriv", sizeof("authPriv")) == 0) {
+                    RSERVER_SET_VALUE(rserver->privProtocol, tmpcomm);
+                } else {
+                    fprintf(stdout, "v3 and securelevel authPriv needed by authprotocol\n");
                 }
 			} else if (strncmp(command, "snmp user", 9) == 0) {
                 if (memcmp(rserver->securelevel, "auth", sizeof("auth") - 1) == 0) {
@@ -1129,6 +1153,9 @@ static int realserver_set_snmp_command(struct cli_def *cli, struct cli_command *
 	c = cli_register_command(cli, p, "authNoPriv", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
 
+	c = cli_register_command(cli, p, "authPriv", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+
 	p = cli_register_command(cli, parent, "authProtocol", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_AUTHPROTOCOL);
 
@@ -1144,9 +1171,18 @@ static int realserver_set_snmp_command(struct cli_def *cli, struct cli_command *
 	p = cli_register_command(cli, parent, "password", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_PASSWORD);
 
+	p = cli_register_command(cli, parent, "privProtocol", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_PASSWORD);
+
+	c = cli_register_command(cli, p, "DES", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+
+	c = cli_register_command(cli, p, "AES", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+
 	p = cli_register_command(cli, parent, "community", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_MEMORY);
-	cli_command_add_argument(p, "STRING length:1-31", check_community);
+	cli_command_add_argument(p, "<STRING:length 1-31>", check_community);
 
 	p = cli_register_command(cli, parent, "cpu", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_CPU);

@@ -269,6 +269,8 @@ static int realserver_analyse(xmlNodePtr pnode, struct list_head *list)
 	m_analyse_common(pnode, realserver, securelevel);
 	/* SNMPv3 auth type, MD5 or SHA1 */
 	m_analyse_common(pnode, realserver, authProtocol);
+	m_analyse_common(pnode, realserver, privProtocol);
+	m_analyse_common(pnode, realserver, privPassword);
 	/* control snmptrap */
 	m_analyse_common(pnode, realserver, trap_enable);
 	/* manager ip */
@@ -364,6 +366,8 @@ static int realserver_restore(xmlNodePtr pnode, struct list_head *list)
 	m_restore_common(pnode, realserver, securelevel);
 	/* SNMPv3 auth type, MD5 or SHA1 */
 	m_restore_common(pnode, realserver, authProtocol);
+	m_restore_common(pnode, realserver, privProtocol);
+	m_restore_common(pnode, realserver, privPassword);
 	/* control snmptrap */
 	m_restore_common(pnode, realserver, trap_enable);
 	/* manager ip */
@@ -515,6 +519,8 @@ static int realserver_set(struct list_head *list, const char *name,
 	ZERO(community);	/* community */
 	ZERO(securelevel);	/* noAuthNoPriv|authNoPriv|authPriv */
 	ZERO(authProtocol);	/* SNMPv3 auth type, MD5 or SHA1 */
+	ZERO(privProtocol);	/* SNMPv3 privProtocol */
+	ZERO(privPassword);
 	ZERO(trap_enable);  /* control snmptrap */
 	ZERO(trap_manager); /* manager ip */
 	ZERO(trap_v3_engineid);	/* trap v3 engine id */
@@ -609,6 +615,10 @@ static int realserver_set(struct list_head *list, const char *name,
 			set_value(token, rserver->securelevel);
 		} else if (!strncasecmp(token, "authProtocol=", 13)) {
 			set_value(token, rserver->authProtocol);
+		} else if (!strncasecmp(token, "privProtocol=", 13)) {
+			set_value(token, rserver->privProtocol);
+		} else if (!strncasecmp(token, "privPassword=", 13)) {
+			set_value(token, rserver->privPassword);
 		} else if (!strncasecmp(token, "trap_enable=", 12)) {
 			set_value(token, rserver->trap_enable);
 		} else if (!strncasecmp(token, "trap_manager=", 13)) {

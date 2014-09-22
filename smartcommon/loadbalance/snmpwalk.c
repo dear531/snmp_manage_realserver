@@ -34,7 +34,8 @@ static int snmp_oid(char *rsinfo, char *oid, int show_mod)
 		goto finish;
 	}
 	
-	sprintf(command, "%s %s %s %s", WALK_COMMAND, rsinfo, oid, SHOW_RESULT);
+	sprintf(command, "%s %s %s %s %s", WALK_COMMAND, rsinfo, oid,
+			REDIRECT_ERR, SHOW_RESULT);
 	/*
 	 * command = "/SmartGrid/snmp/bin/snmpwalk -v 2c -c public 192.168.12.80 .1.3.6.1.2.1.25.2.3.1.2 2>&1\necho \"result:$?\"\n";
 	 */
@@ -215,17 +216,6 @@ int create_rsinfo(struct rserver *rserver, char *rsinfo)
 	if (NULL == rsinfo || NULL == rserver) {
 		goto err;
 	}
-#if 0
-	if (rserver->snmp_version[0] == 0
-		|| rserver->securelevel[0] == 0
-		|| rserver->username[0] == 0
-		|| rserver->authProtocol[0] == 0
-		|| rserver->password[0] == 0
-		|| rserver->cpu[0] == 0
-		|| rserver->memory[0] == 0) {
-		goto err;
-	}
-#endif
 	if (0 == memcmp(rserver->snmp_version, "3", sizeof("3"))) {
 		fprintf(stdout, "here snmp version fix me\n");
 		/* FIXME */

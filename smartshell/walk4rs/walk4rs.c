@@ -311,6 +311,8 @@ static int do_realserver_config_modify(char *poolname, struct rserver *rserver)
 	RSERVER_SET_VALUE("community", rserver->community);
 	/* SNMPv3 auth type, MD5 or SHA1 */
 	RSERVER_SET_VALUE("authProtocol", rserver->authProtocol);
+	RSERVER_SET_VALUE("privProtocol", rserver->privProtocol);
+	RSERVER_SET_VALUE("privPassword", rserver->privPassword);
 	/* noAuthNoPriv|authNoPriv|authPriv */
 	RSERVER_SET_VALUE("securelevel", rserver->securelevel);
 	/* control snmptrap */
