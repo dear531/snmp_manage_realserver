@@ -217,8 +217,32 @@ int create_rsinfo(struct rserver *rserver, char *rsinfo)
 		goto err;
 	}
 	if (0 == memcmp(rserver->snmp_version, "3", sizeof("3"))) {
-		fprintf(stdout, "here snmp version fix me\n");
-		/* FIXME */
+		sprintf(rsinfo, "-v %s", rserver->snmp_version);
+		if (0 == memcmp(rserver->securelevel, "authNoPriv", sizeof("authNoPriv"))
+			|| 0 == memcmp(rserver->securelevel, "authPriv", sizeof("authPriv"))) {
+			sprintf(rsinfo, "%s -l %s", rsinfo, rserver->securelevel);
+		} else {
+			goto err;
+		}
+
+		if (0 == memcmp(rserver->authProtocol, "md5", sizeof("md5"))
+			|| 0 == memcmp(rserver->authProtocol, "sha", sizeof("sha"))) {
+			sprintf(rsinfo, "%s -a %s", rsinfo, rserver->authProtocol);
+		} else {
+			goto err;
+		}
+
+		if (0 != rserver->username[0] && 0 != rserver->password[0]) {
+			sprintf(rsinfo, "%s -u %s -A %s", rsinfo, rserver->username, rserver->password);
+		} else {
+			goto err;
+		}
+
+		if (0 == memcmp(rserver->securelevel, "authPriv", sizeof("authPriv"))
+			&& 0 != rserver->privProtocol[0] && 0 != rserver->privPassword[0]) {
+			sprintf(rsinfo, "%s -x %s -X %s", rsinfo, rserver->privProtocol,
+					rserver->privPassword);
+		}
 	} else if (0 == memcmp(rserver->snmp_version, "2c", sizeof("2c"))
 			&& 0 != rserver->community[0]) {
 		sprintf(rsinfo, "-v %s -c %s", rserver->snmp_version,
