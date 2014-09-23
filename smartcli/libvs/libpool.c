@@ -824,6 +824,63 @@ void zeroneedless(struct rserver *rserver)
     }
     return;
 }
+static int check_snmp_member(struct rserver *rserver, char *command, char *argv[], int argc)
+{
+    enum {
+        VERSION_2 = 1 << 0,
+        VERSION_3 = 1 << 1,
+        SECURELEVEL_AUTH = 1 << 2,
+        SECURELEVEL_AUTHPRIV = 1 << 3,
+    };
+    char *snmp_name[] = {"version 2c", "version 3", "securelevel auth", "securelevel authPriv"};
+    struct {
+        char *member;
+        int need;
+    } snmp_need_list[] = {
+        {"community", VERSION_2,},
+        {"securelevel", VERSION_3,},
+        {"authProtocol", VERSION_3 | SECURELEVEL_AUTH,},
+        {"privProtocol", VERSION_3 | SECURELEVEL_AUTHPRIV,},
+        {"privPassword", VERSION_3 | SECURELEVEL_AUTHPRIV,},
+        {"username", VERSION_3 | SECURELEVEL_AUTH,},
+        {"password", VERSION_3 | SECURELEVEL_AUTH,},
+    };
+    int ret = 0;
+    char tmpcomm[32] = {0};
+    int i;
+    int cmp = 0;
+    sscanf(command, "%*s %s", tmpcomm);
+
+    if (0 == memcmp(rserver->snmp_version, "3", sizeof("3"))) {
+        ret |= VERSION_3;
+    } else if (0 == memcmp(rserver->snmp_version, "2c", sizeof("2c"))) {
+        ret |= VERSION_2;
+    }
+    if (0 == memcmp(rserver->securelevel, "auth", sizeof("auth") - 1)) {
+        ret |= SECURELEVEL_AUTH;
+    }
+    if (0 == memcmp(rserver->securelevel, "authPriv", sizeof("authPriv"))) {
+        ret |= SECURELEVEL_AUTHPRIV;
+    }
+    for (i = 0; i < sizeof(snmp_need_list) / sizeof(*snmp_need_list); i++) {
+        if (0 == memcmp(tmpcomm, snmp_need_list[i].member, strlen(snmp_need_list[i].member))) {
+            cmp = (~ret) & snmp_need_list[i].need;
+        }
+    }
+    if (0 == cmp) {
+        goto finish;
+    }
+
+    fprintf(stdout, "set");
+    for (i = 0; i < sizeof(snmp_name) / sizeof(*snmp_name); i++) {
+        if (0 != (cmp & (1 << i)))
+            fprintf(stdout, " %s", snmp_name[i]);
+    }
+    fprintf(stdout, " need by %s\n", tmpcomm);
+    return -1;
+finish:
+    return 0;
+}
 static int _realserver_config_modify(struct cli_def *cli, char *command, char *argv[], int argc, char *poolname, char *rsaddr)
 {
 	struct apppool *apppool;
@@ -881,53 +938,36 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
 			} else if (strncmp(command, "vmdatacenter", 8) == 0) {
 				RSERVER_SET_VALUE(rserver->vmdatacenter, argv[0]);
 			} else if (strncmp(command, "snmp version", 12) == 0) {
-                    RSERVER_SET_VALUE(rserver->snmp_version, argc == 0 ? "3" : argv[0]);
-                    zeroneedless(rserver);
-			} else if (strncmp(command, "snmp securelevel authNoPriv", 29) == 0
-                    || strncmp(command, "snmp securelevel authPriv", 27) == 0) {
+                RSERVER_SET_VALUE(rserver->snmp_version, argc == 0 ? "3" : argv[0]);
+                zeroneedless(rserver);
+			} else if (strncmp(command, "snmp securelevel", 16) == 0) {
+                if (check_snmp_member(rserver, command, argv, argc) != 0) continue;
                 char tmpcomm[32] = {0};
                 sscanf(command, "%*s %*s %s", tmpcomm);
-                if (memcmp(rserver->snmp_version, "3", sizeof("3")) == 0) {
-                    RSERVER_SET_VALUE(rserver->securelevel, tmpcomm);
-                } else {
-                    fprintf(stdout, "snmp version 3 needed by securelevel\n");
-                    continue;
-                }
-			} else if (strncmp(command, "snmp authProtocol md5", 22) == 0
-                    || strncmp(command, "snmp authProtocol sha", 22) == 0) {
-                    char tmpcomm[32] = {0};
-                    sscanf(command, "%*s %*s %s", tmpcomm);
-                if (memcmp(rserver->securelevel, "auth", sizeof("auth") - 1) == 0) {
-                    RSERVER_SET_VALUE(rserver->authProtocol, tmpcomm);
-                } else {
-                    fprintf(stdout, "v3 and securelevel authNoPriv or authPriv needed by authprotocol\n");
-                    continue;
-                }
-			} else if (strncmp(command, "snmp privProtocol DES", 22) == 0
-                    || strncmp(command, "snmp privProtocol AES", 22) == 0) {
+                RSERVER_SET_VALUE(rserver->securelevel, tmpcomm);
+			} else if (strncmp(command, "snmp authProtocol", 17) == 0) {
+                if (check_snmp_member(rserver, command, argv, argc) != 0) continue;
                 char tmpcomm[32] = {0};
                 sscanf(command, "%*s %*s %s", tmpcomm);
-                if (memcmp(rserver->securelevel, "authPriv", sizeof("authPriv")) == 0) {
-                    RSERVER_SET_VALUE(rserver->privProtocol, tmpcomm);
-                } else {
-                    fprintf(stdout, "v3 and securelevel authPriv needed by authprotocol\n");
-                }
-			} else if (strncmp(command, "snmp privPassword", 18) == 0) {
-                if (memcmp(rserver->securelevel, "authPriv", sizeof("authPriv")) == 0) {
-                    RSERVER_SET_VALUE(rserver->privPassword, argv[0]);
-                } else {
-                    fprintf(stdout, "v3 and securelevel authPriv needed by privPassword\n");
-                }
+                RSERVER_SET_VALUE(rserver->authProtocol, tmpcomm);
+			} else if (strncmp(command, "snmp privProtocol", 17) == 0) {
+                if (check_snmp_member(rserver, command, argv, argc) != 0) continue;
+                char tmpcomm[32] = {0};
+                sscanf(command, "%*s %*s %s", tmpcomm);
+                RSERVER_SET_VALUE(rserver->privProtocol, tmpcomm);
+			} else if (strncmp(command, "snmp privPassword", 17) == 0) {
+                if (check_snmp_member(rserver, command, argv, argc) != 0) continue;
+                RSERVER_SET_VALUE(rserver->privPassword, argv[0]);
 			} else if (strncmp(command, "snmp user", 9) == 0) {
-                if (memcmp(rserver->securelevel, "auth", sizeof("auth") - 1) == 0) {
-                    snmp_user(rserver);
-                    snmp_password(rserver);
-                } else {
-                    fprintf(stdout, "v3 and securelevel auth needed by user\n");
-                    continue;
-                }
-			} else if (strncmp(command, "snmp password", 13) == 0) {
+                if (check_snmp_member(rserver, command, argv, argc) != 0) continue;
+                snmp_user(rserver);
                 snmp_password(rserver);
+			} else if (strncmp(command, "snmp password", 13) == 0) {
+                if (check_snmp_member(rserver, command, argv, argc) != 0) continue;
+                snmp_password(rserver);
+            } else if (strncmp(command, "snmp community", 14) == 0) {
+                if (check_snmp_member(rserver, command, argv, argc) != 0) continue;
+                RSERVER_SET_VALUE(rserver->community, argv[0]);
 			} else if (strncmp(command, "snmp cpu", 8) == 0) {
                 RSERVER_SET_VALUE(rserver->cpu, argc == 0 ? "" : argv[0]);
                 if (strlen(rserver->cpu) > 0) {
@@ -939,13 +979,6 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
                 if (strlen(rserver->memory) > 0) {
                     sprintf(rserver->cpu, "%ld", 100 - strtol(argv[0], NULL, 10));
                     fprintf(stdout, "auto set cpu %s\n", rserver->cpu);
-                }
-            } else if (strncmp(command, "snmp community", 14) == 0) {
-                if (strncmp(rserver->snmp_version, "2c", sizeof("2c")) == 0) {
-                    RSERVER_SET_VALUE(rserver->community, argv[0]);
-                } else {
-                    fprintf(stdout, "set version 2c by community\n");
-                    continue;
                 }
 			} else if (strncmp(command, "snmp check", 10) == 0) {
                 if (check_snmp_complete_set_snmp_enable(rserver) == 0)
