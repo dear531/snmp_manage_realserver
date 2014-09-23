@@ -1161,19 +1161,19 @@ static int realserver_set_snmp_command(struct cli_def *cli, struct cli_command *
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_SECURELEVEL);
 
 	c = cli_register_command(cli, p, "authNoPriv", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SNMPWALK_SECURELEVEL_AUTHNOPRIV);
 
 	c = cli_register_command(cli, p, "authPriv", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SNMPWALK_SECURELEVEL_AUTHPRIV);
 
 	p = cli_register_command(cli, parent, "authProtocol", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_AUTHPROTOCOL);
 
 	c = cli_register_command(cli, p, "md5", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_AUTHPROTOCOL_MD5);
 
 	c = cli_register_command(cli, p, "sha", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_AUTHPROTOCOL_SHA);
 
 	p = cli_register_command(cli, parent, "user", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_USER);
@@ -1182,20 +1182,20 @@ static int realserver_set_snmp_command(struct cli_def *cli, struct cli_command *
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_PASSWORD);
 
 	p = cli_register_command(cli, parent, "privProtocol", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_PASSWORD);
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_PRIVPROTOCOL);
 
 	c = cli_register_command(cli, p, "DES", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_PRIVPROTOCOL_DES);
 
 	c = cli_register_command(cli, p, "AES", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_PRIVPROTOCOL_AES);
 
 	p = cli_register_command(cli, parent, "privPassword", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_MEMORY);
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_PRIVPASSWORD);
 	cli_command_add_argument(p, "<STRING:length 1-31>", check_privpassword);
 
 	p = cli_register_command(cli, parent, "community", realserver_config_modify,
-			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_MEMORY);
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_COMMUNITY);
 	cli_command_add_argument(p, "<STRING:length 1-31>", check_community);
 
 	p = cli_register_command(cli, parent, "cpu", realserver_config_modify,

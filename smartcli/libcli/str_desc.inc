@@ -3587,9 +3587,29 @@ static struct str_desc str_desc [] = {
 		.cn = "设置获取真实服务器信息所支持的snmp安全层算法",
 	},
 
+	[ LIBCLI_VSERVER_SNMPWALK_SECURELEVEL_AUTHNOPRIV ] = {
+		.en = "set snmpwalk securelevel of real server as authNoPriv",
+		.cn = "设置获取真实服务器信息所支持的snmp安全层算法为认证不加密",
+	},
+
+	[ LIBCLI_VSERVER_SNMPWALK_SECURELEVEL_AUTHPRIV ] = {
+		.en = "set snmpwalk securelevel of real server as authPriv",
+		.cn = "设置获取真实服务器信息所支持的snmp安全层算法为认证并加密",
+	},
+
 	[ LIBCLI_RSERVER_SNMPWALK_AUTHPROTOCOL ] = {
 		.en = "set snmpwalk authprotocol of real server",
 		.cn = "设置获取真实服务器信息所支持的snmp加密算法",
+	},
+
+	[ LIBCLI_RSERVER_SNMPWALK_AUTHPROTOCOL_MD5 ] = {
+		.en = "set snmpwalk authprotocol as md5",
+		.cn = "设置获取真实服务器信息所支持的snmp加密算法为md5",
+	},
+
+	[ LIBCLI_RSERVER_SNMPWALK_AUTHPROTOCOL_SHA ] = {
+		.en = "set snmpwalk authprotocol as sha",
+		.cn = "设置获取真实服务器信息所支持的snmp加密算法为sha",
 	},
 
 	[ LIBCLI_RSERVER_SNMPWALK_USER ] = {
@@ -3600,6 +3620,31 @@ static struct str_desc str_desc [] = {
 	[ LIBCLI_RSERVER_SNMPWALK_PASSWORD ] = {
 		.en = "set snmpwalk password of real server",
 		.cn = "设置获取真实服务器snmp密码",
+	},
+
+	[ LIBCLI_RSERVER_SNMPWALK_PRIVPROTOCOL ] = {
+		.en = "set snmpwalk privProtocol of real server",
+		.cn = "设置获取真实服务器snmp加密协议",
+	},
+
+	[ LIBCLI_RSERVER_SNMPWALK_PRIVPROTOCOL_DES ] = {
+		.en = "set snmpwalk privProtocol as DES",
+		.cn = "设置获取真实服务器snmp协议为DES",
+	},
+
+	[ LIBCLI_RSERVER_SNMPWALK_PRIVPROTOCOL_AES ] = {
+		.en = "set snmpwalk privProtocol as AES",
+		.cn = "设置获取真实服务器snmp协议为AES",
+	},
+
+	[ LIBCLI_RSERVER_SNMPWALK_PRIVPASSWORD ] = {
+		.en = "set snmpwalk privPassword for rserver ",
+		.cn = "设置获取真实服务器snmp验证字符串",
+	},
+
+	[ LIBCLI_RSERVER_SNMPWALK_COMMUNITY ] = {
+		.en = "set snmpwalk conmunity for snmpwalk v2c",
+		.cn = "设置获取真实服务器snmp v2c 协议设置共同体",
 	},
 
 	[ LIBCLI_RSERVER_SNMPWALK_CPU ] = {
