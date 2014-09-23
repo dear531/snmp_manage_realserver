@@ -421,6 +421,10 @@ static int check_community(struct cli_def *cli, struct cli_command *c, char *val
 	return CLI_OK;
 }
 
+static int check_privpassword(struct cli_def *cli, struct cli_command *c, char *value)
+{
+    return check_community(cli, c, value);
+}
 static int apppool_queue_create(struct list_head *queue, const char *name)
 {
 	return module_get_queue(queue, "apppool", name);
@@ -908,6 +912,12 @@ static int _realserver_config_modify(struct cli_def *cli, char *command, char *a
                 } else {
                     fprintf(stdout, "v3 and securelevel authPriv needed by authprotocol\n");
                 }
+			} else if (strncmp(command, "snmp privPassword", 18) == 0) {
+                if (memcmp(rserver->securelevel, "authPriv", sizeof("authPriv")) == 0) {
+                    RSERVER_SET_VALUE(rserver->privPassword, argv[0]);
+                } else {
+                    fprintf(stdout, "v3 and securelevel authPriv needed by privPassword\n");
+                }
 			} else if (strncmp(command, "snmp user", 9) == 0) {
                 if (memcmp(rserver->securelevel, "auth", sizeof("auth") - 1) == 0) {
                     snmp_user(rserver);
@@ -1179,6 +1189,10 @@ static int realserver_set_snmp_command(struct cli_def *cli, struct cli_command *
 
 	c = cli_register_command(cli, p, "AES", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_VSERVER_SET_LIMIT_OFF);
+
+	p = cli_register_command(cli, parent, "privPassword", realserver_config_modify,
+			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_MEMORY);
+	cli_command_add_argument(p, "<STRING:length 1-31>", check_privpassword);
 
 	p = cli_register_command(cli, parent, "community", realserver_config_modify,
 			PRIVILEGE_PRIVILEGED, MODE_EXEC, LIBCLI_RSERVER_SNMPWALK_MEMORY);
