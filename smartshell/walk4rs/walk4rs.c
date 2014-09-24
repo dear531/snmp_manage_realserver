@@ -455,7 +455,7 @@ static void snmpwalk_nodes_save(struct list_head *head)
 	}
 	return;
 }
-
+#define TIME_WAIT_SNMPWALK	60
 int main(int argc, char *argv[])
 {
 	SMT_LOG_INIT();
@@ -478,22 +478,25 @@ int main(int argc, char *argv[])
 	signal_handler(SIGCHLD, SIG_IGN);
 	iptables_snmpwalk_rs(NULL, 0);
 	iptables_snmpwalk_rs(NULL, 1);
+	pid_t pid;
 
-	int sleep_flag;
 	while(1) {
-		/* get cpu and mem result */
-		snmpwalk_get_data(&head);
+		if (0 > (pid = fork())) {
+			syslog(LOG_INFO, "%s %d %s %s",
+				__FILE__, __LINE__, __func__, strerror(errno));
+		} else if (pid == 0) {
+			/* get cpu and mem result */
+			snmpwalk_get_data(&head);
 
-		sleep_flag = list_empty(&head);
+			/* save result to xml file */
+			snmpwalk_nodes_save(&head);
 
-		/* save result to xml file */
-		snmpwalk_nodes_save(&head);
-
-		/* free node list */
-		destroy_nodes(&head);
-
-		if (sleep_flag)
-			usleep(1000 * 100);
+			/* free node list */
+			destroy_nodes(&head);
+			exit(EXIT_SUCCESS);
+		} else {
+			sleep(TIME_WAIT_SNMPWALK);
+		}
 	}
 out:
 	ulog_fini();
