@@ -228,7 +228,7 @@ long int check_snmp(struct rserver *rserver, int mode)
 #endif
 	check_data(data);
     if (SNMP_SHOW == mode) {
-        fprintf(stdout, "cpu free :%ld %%\n", data);
+        fprintf(stdout, "cpu free :%ld %%\n", 100 - data);
 	}
 
 	index = snmp_oid(rsinfo, STANDARD_MEM_TYPE, mode);
