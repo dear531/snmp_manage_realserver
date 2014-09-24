@@ -170,7 +170,8 @@ static int snmpwalk_get_data(struct list_head *head)
 		list_for_each_entry(rserver, &apppool->realserver_head, list) {
 
 			/** util close snmp enable **/
-			if (memcmp(rserver->snmp_enable, "on", sizeof("on")) != 0) {
+			if (memcmp(rserver->snmp_enable, "on", sizeof("on")) != 0
+				|| memcmp(rserver->state, "up", sizeof("up")) != 0) {
 				continue;
 			}
 
