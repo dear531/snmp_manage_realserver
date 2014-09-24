@@ -280,16 +280,16 @@ long int check_snmp(struct rserver *rserver, int mode)
 	sprintf(rsinfo, "%s %s", rsinfo, ip);
 
 	cpu_free = get_cpu_free(rsinfo, mode);
+    check_data(cpu_free);
     if (SNMP_SHOW == mode) {
         fprintf(stdout, "cpu free :%ld %%\n", cpu_free);
 	}
-    check_data(cpu_free);
 
 	mem_free = get_mem_free(rsinfo, mode);
+    check_data(mem_free);
     if (SNMP_SHOW == mode) {
         fprintf(stdout, "mem free :%ld M\n", mem_free / 1024 / 1024);
     }
-    check_data(mem_free);
 
 #if SNMP_DEBUG
     if (SNMP_SHOW == mode) {
