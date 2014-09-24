@@ -206,6 +206,7 @@ long int check_snmp(struct rserver *rserver, int mode)
 	long int unit;
 	long int size;
 	long int used;
+	long int base;
 
 	if (0 != create_rsinfo(rserver, rsinfo))
 		goto err;
@@ -270,13 +271,14 @@ long int check_snmp(struct rserver *rserver, int mode)
         fprintf(stdout, "mem free :%ld M\n", (size - used) * unit / 1024 / 1024);
     }
 
+	base = size * unit / 1024 / 1024 / 500;
 #if SNMP_DEBUG
     if (SNMP_SHOW == mode) {
 		fprintf(stdout, "weight:%ld\n",
-		10 * data / 100 * cpu / 100 + (size - used) * unit / 1024 / 1024 / 500 * mem / 100);
+		base * (100 - data) / 100 * cpu / 100 + base * (size - used) / size * mem / 100);
 	}
 #endif
-    return 10 * data / 100 * cpu / 100 + (size - used) * unit / 1024 / 1024 / 500 * mem / 100;
+    return base * (100 - data) / 100 * cpu / 100 + base * (size - used) / size * mem / 100;
 err:
 	return -1;
 }
