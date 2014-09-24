@@ -300,8 +300,13 @@ static int print_rserver_parameter(FILE *fp, struct rserver *rserver,
 				ip, port);
 	}
 	fprintf(fp, "\t\tpoolname %s\n", pool->name);
-	if (strlen(rserver->weight))
-		fprintf(fp, "\t\tweight %s\n", rserver->weight);
+	if (0 == memcmp(pool->subjoinsched, "snmp", sizeof("snmp"))) {
+		if (strlen(rserver->snmp_weight))
+			fprintf(fp, "\t\tweight %s\n", rserver->snmp_weight);
+	} else {
+		if (strlen(rserver->weight))
+			fprintf(fp, "\t\tweight %s\n", rserver->weight);
+	}
 	if (strlen(rserver->maxconn))
 		fprintf(fp, "\t\tconnmax %s\n", rserver->maxconn);
 	if (strlen(rserver->bandwidth))
