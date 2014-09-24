@@ -275,10 +275,10 @@ long int check_snmp(struct rserver *rserver, int mode)
 #if SNMP_DEBUG
     if (SNMP_SHOW == mode) {
 		fprintf(stdout, "weight:%ld\n",
-		base * (100 - data) / 100 * cpu / 100 + base * (size - used) / size * mem / 100);
+		base * (100 - data) / 100 * cpu / 100 + base * (size - used) / size * mem / 100) + 1;
 	}
 #endif
-    return base * (100 - data) / 100 * cpu / 100 + base * (size - used) / size * mem / 100;
+    return base * (100 - data) / 100 * cpu / 100 + base * (size - used) / size * mem / 100 + 1;
 err:
 	return -1;
 }
