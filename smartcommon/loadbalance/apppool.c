@@ -151,6 +151,7 @@ static struct list_head *realserver_malloc(void)
 		return NULL;
 	}
 	strcpy(realserver->state, "unknown");
+	strcpy(realserver->snmp_weight, "10");
 	return &realserver->list;
 }
 
