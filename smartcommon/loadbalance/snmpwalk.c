@@ -148,69 +148,6 @@ finish:
 							}				\
 						} while(0)
 
-static long int get_cpu_free(char *rsinfo, int show_mod)
-{
-	long int data = 0;
-	data = snmp_oid(rsinfo, STANDARD_CPU_OID, show_mod);
-#if SNMP_DEBUG
-    if (SNMP_SHOW == show_mod) {
-		fprintf(stdout, "cpu :%ld\n", data);
-	}
-#endif
-	check_data(data);
-	return 100 - data;
-err:
-	return -1;
-}
-
-static long int get_mem_free(char *rsinfo, int show_mod)
-{
-	char tmpoid[sizeof(STANDARD_MEM_UNIT) + sizeof(".dd") - 1] = {0};
-	long int index;
-	long int unit;
-	long int size;
-	long int used;
-	index = snmp_oid(rsinfo, STANDARD_MEM_TYPE, show_mod);
-#if SNMP_DEBUG
-    if (SNMP_SHOW == show_mod) {
-		fprintf(stdout, "index :%ld\n", index);
-	}
-#endif
-	check_data(index);
-	memset(tmpoid, 0x00, strlen(tmpoid));
-	sprintf(tmpoid, "%s.%ld", STANDARD_MEM_UNIT, index);
-	unit = snmp_oid(rsinfo, tmpoid, show_mod);
-#if SNMP_DEBUG
-    if (SNMP_SHOW == show_mod) {
-		fprintf(stdout, "unit :%ld\n", unit);
-	}
-#endif
-	check_data(unit);
-
-	memset(tmpoid, 0x00, strlen(tmpoid));
-	sprintf(tmpoid, "%s.%ld", STANDARD_MEM_SIZE, index);
-	size = snmp_oid(rsinfo, tmpoid, show_mod);
-#if SNMP_DEBUG
-    if (SNMP_SHOW == show_mod) {
-		fprintf(stdout, "size :%ld, mem total: %ld\n", size, size * unit);
-	}
-#endif
-	check_data(size);
-
-	memset(tmpoid, 0x00, strlen(tmpoid));
-	sprintf(tmpoid, "%s.%ld", STANDARD_MEM_USED, index);
-	used = snmp_oid(rsinfo, tmpoid, show_mod);
-#if SNMP_DEBUG
-    if (SNMP_SHOW == show_mod) {
-		fprintf(stdout, "used :%ld, mem used: %ld\n", used, used * unit);
-	}
-#endif
-	check_data(used);
-	return (size - used) * unit;
-err:
-	return -1;
-}
-
 int create_rsinfo(struct rserver *rserver, char *rsinfo)
 {
 	if (NULL == rsinfo || NULL == rserver) {
@@ -263,9 +200,13 @@ long int check_snmp(struct rserver *rserver, int mode)
 	int cpu;
 	int mem;
 	char rsinfo[1024] = {0};
+	long int data = 0;
+	char tmpoid[sizeof(STANDARD_MEM_UNIT) + sizeof(".dd") - 1] = {0};
+	long int index;
+	long int unit;
+	long int size;
+	long int used;
 
-	long int cpu_free;
-	long int mem_free;
 	if (0 != create_rsinfo(rserver, rsinfo))
 		goto err;
 	//memcpy(rsinfo, "-v 2c -c public", sizeof("-v 2c -c public"));
@@ -278,26 +219,64 @@ long int check_snmp(struct rserver *rserver, int mode)
     if (strlen(ip) == 0)
 		goto err;
 	sprintf(rsinfo, "%s %s", rsinfo, ip);
-
-	cpu_free = get_cpu_free(rsinfo, mode);
-    check_data(cpu_free);
+	data = snmp_oid(rsinfo, STANDARD_CPU_OID, mode);
+#if SNMP_DEBUG
     if (SNMP_SHOW == mode) {
-        fprintf(stdout, "cpu free :%ld %%\n", cpu_free);
+		fprintf(stdout, "cpu :%ld\n", data);
+	}
+#endif
+	check_data(data);
+    if (SNMP_SHOW == mode) {
+        fprintf(stdout, "cpu free :%ld %%\n", data);
 	}
 
-	mem_free = get_mem_free(rsinfo, mode);
-    check_data(mem_free);
+	index = snmp_oid(rsinfo, STANDARD_MEM_TYPE, mode);
+#if SNMP_DEBUG
     if (SNMP_SHOW == mode) {
-        fprintf(stdout, "mem free :%ld M\n", mem_free / 1024 / 1024);
+		fprintf(stdout, "index :%ld\n", index);
+	}
+#endif
+	check_data(index);
+	memset(tmpoid, 0x00, strlen(tmpoid));
+	sprintf(tmpoid, "%s.%ld", STANDARD_MEM_UNIT, index);
+	unit = snmp_oid(rsinfo, tmpoid, mode);
+#if SNMP_DEBUG
+    if (SNMP_SHOW == mode) {
+		fprintf(stdout, "unit :%ld\n", unit);
+	}
+#endif
+	check_data(unit);
+
+	memset(tmpoid, 0x00, strlen(tmpoid));
+	sprintf(tmpoid, "%s.%ld", STANDARD_MEM_SIZE, index);
+	size = snmp_oid(rsinfo, tmpoid, mode);
+#if SNMP_DEBUG
+    if (SNMP_SHOW == mode) {
+		fprintf(stdout, "size :%ld, mem total: %ld\n", size, size * unit);
+	}
+#endif
+	check_data(size);
+
+	memset(tmpoid, 0x00, strlen(tmpoid));
+	sprintf(tmpoid, "%s.%ld", STANDARD_MEM_USED, index);
+	used = snmp_oid(rsinfo, tmpoid, mode);
+#if SNMP_DEBUG
+    if (SNMP_SHOW == mode) {
+		fprintf(stdout, "used :%ld, mem used: %ld\n", used, used * unit);
+	}
+#endif
+	check_data(used);
+    if (SNMP_SHOW == mode) {
+        fprintf(stdout, "mem free :%ld M\n", (size - used) * unit / 1024 / 1024);
     }
 
 #if SNMP_DEBUG
     if (SNMP_SHOW == mode) {
-		fprintf(stdout, "weihgt:%ld\n",
-		10 * cpu_free / 100 * cpu / 100 + mem_free / 1024 / 1024 / 500 * mem / 100);
+		fprintf(stdout, "weight:%ld\n",
+		10 * data / 100 * cpu / 100 + (size - used) * unit / 1024 / 1024 / 500 * mem / 100);
 	}
 #endif
-    return 10 * cpu_free / 100 * cpu / 100 + mem_free / 1024 / 1024 / 500 * mem / 100;
+    return 10 * data / 100 * cpu / 100 + (size - used) * unit / 1024 / 1024 / 500 * mem / 100;
 err:
 	return -1;
 }
