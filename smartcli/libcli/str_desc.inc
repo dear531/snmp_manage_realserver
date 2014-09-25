@@ -3309,6 +3309,57 @@ static struct str_desc str_desc [] = {
 		.en = "Set LLB RealServer of LLB Pool",
 		.cn = "设置应用池中的真实服务器",
 	},
+/*****************llb_qos_schedule***************************/
+	[ LIBCLI_LLB_QOS_SCHEDULE_ADD_INFO ] = {
+		.en = "Add  LLB qos_schedule",
+		.cn = "添加 LLB qos_schedule",
+	},
+
+	[ LIBCLI_LLB_QOS_SCHEDULE_ADD_DAYS_INFO ] = {
+		.en = "Add  days of LLB qos_schedule",
+		.cn = "添加 LLB qos_schedule days",
+	},
+
+	[ LIBCLI_LLB_QOS_SCHEDULE_SHOW_INFO ] = {
+		.en = "Show LLB qos_schedule information",
+		.cn = "显示 qos_schedule 的配置信息",
+	},
+
+	[ LIBCLI_LLB_QOS_SCHEDULE_SET_INFO ] = {
+		.en = "Set LLB qos_schedule ",
+		.cn = "设置 LLB qos_schedule",
+	},
+
+	[ LIBCLI_LLB_QOS_SCHEDULE_SET_BETWEEN_INFO ] = {
+		.en = "Set between of LLB qos_schedule ",
+		.cn = "设置 LLB qos_schedule between",
+	},
+
+	[ LIBCLI_LLB_QOS_SCHEDULE_SET_TO_INFO ] = {
+		.en = "Set to of LLB qos_schedule ",
+		.cn = "设置 LLB qos_schedule to",
+	},
+
+	[ LIBCLI_LLB_QOS_SCHEDULE_SET_DAYS_INFO ] = {
+		.en = "Set days of LLB qos_schedule ",
+		.cn = "设置 LLB qos_schedule days",
+	},
+
+	[ LIBCLI_LLB_QOS_SCHEDULE_SET_DAYS_ADD_INFO ] = {
+		.en = "Add days of LLB qos_schedule ",
+		.cn = "添加 LLB qos_schedule days",
+	},
+
+	[ LIBCLI_LLB_QOS_SCHEDULE_SET_DAYS_DEL_INFO ] = {
+		.en = "Delete days of LLB qos_schedule ",
+		.cn = "删除 LLB qos_schedule days",
+	},
+
+	[ LIBCLI_LLB_QOS_SCHEDULE_DELETE_INFO ] = {
+		.en = "Delete LLB qos_schedule ",
+		.cn = "删除 LLB qos_schedule",
+	},
+
 /*****************llb_rserver************************/
 	[ LIBCLI_LLB_RSERVER_ADD_INFO ] = {
 		.en = "Add  LLB Rserver to a LLB Pool",
@@ -3547,6 +3598,70 @@ static struct str_desc str_desc [] = {
 	[ LIBCLI_LLB_SNAT_SHOW_INFO ] = {
 		.en = "Show LLB SNAT information",
 		.cn = "展示智能SNAT的信息",
+	},
+
+	        /*********LLB QOS*************/
+
+	[ LIBCLI_LLB_QOS_SHOW_INFO ] = {
+		.en = "Show LLB QOS information",
+		.cn = "展示智能QOS的信息",
+	},
+	[ LIBCLI_LLB_QOS_ADD_INFO ] = {
+		.en = "Add QOS SNAT",
+		.cn = "添加智能QOS",
+	},
+
+	[ LIBCLI_LLB_QOS_MANAGE_INFO ] = {
+		.en = "Manage LLB QOS ",
+		.cn = "设置 LLB QOS的配置信息",
+	},
+	
+	[ LIBCLI_LLB_QOS_DELETE_INFO ] = {
+		.en = "Delete LLB QOS",
+		.cn = "删除 LLB QOS_INFO",
+	},
+	
+	[ LIBCLI_LLB_QOS_SET_DIRECTION_INFO ] = {
+		.en = "Set LLB QOS DIRECTION",
+		.cn = "设置智能QOS方向",
+	},
+	[ LIBCLI_LLB_QOS_SET_DIRECTION_INBOUND_INFO ] = {
+		.en = "Set LLB QOS type INBOUND",
+		.cn = "设置智能QOS 流入",
+	},
+	[ LIBCLI_LLB_QOS_SET_DIRECTION_OUTBOUND_INFO ] = {
+		.en = "Set LLB QOS type OUTBOUND",
+		.cn = "设置智能QOS 流出",
+	},
+	
+	[ LIBCLI_LLB_QOS_SET_PRIORITY_INFO ] = {
+		.en = "Set LLB QOS priority",
+		.cn = "设置智能QOS 优先级",
+	},
+	
+	[ LIBCLI_LLB_QOS_SET_PRIORITY_REALTIME_INFO ] = {
+		.en = "Set LLB QOS PRIORITY REALTIME",
+		.cn = "设置智能QOS 优先级realtime",
+	},
+
+	[ LIBCLI_LLB_QOS_SET_PRIORITY_HIGH_INFO ] = {
+		.en = "Set LLB QOS PRIORITY HIGH",
+		.cn = "设置智能QOS 优先级高",
+	},
+
+	[ LIBCLI_LLB_QOS_SET_PRIORITY_MIDDLE_INFO ] = {
+		.en = "Set LLB QOS PRIORITY MIDDLE",
+		.cn = "设置智能QOS 优先级中",
+	},
+
+	[ LIBCLI_LLB_QOS_SET_PRIORITY_LOW_INFO ] = {
+		.en = "Set LLB QOS PRIORITY LOW",
+		.cn = "设置智能QOS 优先级底",
+	},
+
+	[ LIBCLI_LLB_QOS_SET_BANDWITCH_INFO ] = {
+		.en = "Set LLB QOS bandwitch",
+		.cn = "设置智能QOS 带宽",
 	},
 
 	/*********** snmpwalk for real server ***********/

@@ -43,8 +43,10 @@
 #include "libgslb/gslb_libbind9.h"
 #include "libgslb/gslb_libtopology.h"
 
+#include "libllb/llb_libqos_class.h"
 #include "libllb/llb_libvserver.h"
 #include "libllb/llb_libpool.h"
+#include "libllb/llb_qos_schedule.h"
 #include "libllb/llb_libsnat.h"
 #include "libsysconfig/libsysconfig.h"
 #include "libvs/libwalkrs.h"
@@ -614,36 +616,41 @@ int system_set_LLB_command(struct cli_def *cli, struct cli_command *parent)
 	llb_vserver_show_command(cli, p);
 	healthcheck_show_command(cli, p);
 	llb_pool_show_command(cli, p);
+	llb_qos_schedule_show_command(cli, p);
 	tp_policy_show_command(cli, p);		// show topology policy
 	llb_snat_show_command(cli, p);
-
+	llb_qos_class_show_command(cli, p);
 
 	p= cli_register_command(cli, c, "add", NULL, PRIVILEGE_PRIVILEGED,
 			MODE_EXEC, LIBCLI_COMMON_ADD_INFO);
 	healthcheck_add_command(cli, p);
 	llb_vserver_add_command(cli, p);
 	llb_pool_add_command(cli, p);
+	llb_qos_schedule_add_command(cli, p);
 	llb_snat_add_command(cli, p);
 	//tp_node_add_command(cli, p);
+	llb_qos_class_add_command(cli, p);
 
 	p = cli_register_command(cli, c, "set", default_func, PRIVILEGE_PRIVILEGED,
 			MODE_EXEC, LIBCLI_COMMON_MANAGE_INFO);
 	llb_vserver_set_command(cli, p);
 	healthcheck_set_command(cli, p);
 	llb_pool_set_command(cli, p);
+	llb_qos_schedule_set_command(cli, p);
 	//tp_node_set_command(cli, p);
 	tp_policy_set_command(cli, p);
 	//llb_snat_set_command(cli, p);
-
+	llb_qos_class_set_command(cli, p);
 
 	p = cli_register_command(cli, c, "delete", default_func, PRIVILEGE_PRIVILEGED,
 			MODE_EXEC, LIBCLI_COMMON_DELETE_INFO);
 	llb_vserver_delete_command(cli, p);
 	healthcheck_delete_command(cli, p);
 	llb_pool_delete_command(cli, p);
+	llb_qos_schedule_delete_command(cli, p);
 	llb_snat_delete_command(cli, p);
 	//tp_node_delete_command(cli, p);
-
+	llb_qos_class_delete_command(cli, p);
 	return 0;
 }
 

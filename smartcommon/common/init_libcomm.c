@@ -45,7 +45,8 @@
 #include "gslb/topology.h"
 #include "gslb/topologyfiles.h"
 #include "gslb/bind9.h"
-
+#include "llb/llb_qos_schedule.h"
+#include "llb/llb_qos_class.h"
 #include "llb/llb_vserver.h"
 #include "llb/llb_pool.h"
 #include "llb/llb_system.h"
@@ -60,7 +61,7 @@ extern int merge_default_config_file(void)
 	memset(procname, 0, sizeof(procname));
 
 #define DAEMON4 "/SmartGrid/shell/daemon4"
-	readlink("/proc/self/exe", procname, sizeof(procname));
+	readlink("/proc/self/exe", procname, sizeof(procname));//读取绝对路径
 
 	if (strcmp(procname, DAEMON4) != 0 || getuid() != 0) { 
 		return 0;
@@ -146,9 +147,11 @@ extern int init_libcomm(void)
 	module_init_tp_node();
 	module_init_tp_policy();
 	/*init LLB*/
+	module_init_llb_qos_class();
 	module_init_llb_system();
 	module_init_llb_vserver();
 	module_init_llb_pool();
+	module_init_llb_qos_schedule();
 	module_init_under_gslb();
 	module_init_llb_snat();
 

@@ -67,6 +67,7 @@
 
 #include  "llb/llb_vserver.h"
 #include  "llb/llb_pool.h"
+//#include  "llb/llb_qos_schedule.h"
 #include "bind9cfg.h"
 
 #include "gslb.h"
@@ -376,6 +377,10 @@ static int analyzer_system_delete(char *cmdarg, struct event *e)
 		ret = module_delete("llb_snat", name);
 	} else if (strcmp(type, "dnat") == 0) {
 		ret = module_delete("dnat", name);
+	} else if (strcmp(type, "llb_qos_schedule") == 0) {
+		ret = module_delete("llb_qos_schedule", name);
+	} else if (strcmp(type, "llb_qos_class") == 0) {
+		ret = module_delete("llb_qos_class", name);
 	}
 
 	if (ret != 0) {
@@ -897,6 +902,24 @@ static int analyzer_system_interface(char *cmdarg, struct event *e)
 		return -1;
 	}
 	restart_routing_daemon();
+	return 0;
+}
+
+static int analyzer_system_qos_class(char *cmdarg, struct event *e)
+{
+	char  key[1024] = {0}, value[1024] = {0} , name[1024] ={0};
+	int ret = -1;
+
+//	syslog(LOG_INFO, "****%s%d****\n", __func__,__LINE__);
+	sscanf(cmdarg, "%s %s %s\n", name, key, value);
+
+	ret = module_set("qos_class", name, key, value);
+
+//	syslog(LOG_INFO, "****%s%d****\n", __func__,__LINE__);
+	if (ret != 0) {
+		write_return_status(e->event_fd, ret);
+		return -1;
+	}
 	return 0;
 }
 
@@ -2245,7 +2268,6 @@ static int analyzer_system_llb_system(char *cmdarg, struct event *e)
   return 1;
 }
 
-
 static int analyzer_system_llb_vserver(char *cmdarg, struct event *e)
 {
 	char name[1024] = {0};
@@ -2280,6 +2302,38 @@ static int analyzer_system_llb_vserver(char *cmdarg, struct event *e)
 	return 1;
 }
 
+
+static int analyzer_system_llb_qos_class(char *cmdarg, struct event *e)
+{
+	char  qos_name[1024] = {0}, key[1024] = {0}, value[1024] = {0} , op[1024] ={0};
+	int ret = -1;
+
+	sscanf(cmdarg, "%s %s %s %s\n", qos_name, op, key, value);
+#if 0	
+	syslog(LOG_INFO, "****%s%d****\n", __func__,__LINE__);
+	if (strcmp(op, "add") == 0 && strcmp(key, "qos_class") == 0) {
+		syslog(LOG_INFO, "add qos_name:%s\n", qos_name);
+		ret = module_add_sub("llb_qos_class", qos_name, "qos_class", value);
+	} else if (strcmp(op, "delete") == 0 && strcmp(key, "qos_class") == 0) {
+		syslog(LOG_INFO, "del qos_name:%s\n", qos_name);
+		ret = module_del_sub("llb_qos_class", qos_name, "qos_class", value);
+	} else {
+//		syslog(LOG_INFO, "set qos_name:%s\n", qos_name);
+		ret = module_set("llb_qos_class", qos_name, op, key);
+	}
+#endif 
+	ret = module_set("llb_qos_class", qos_name, op, key);
+if (ret != 0) {
+		write_return_status(e->event_fd, ret);
+		return -1;
+	}
+
+//	syslog(LOG_INFO, "****%s%d****\n", __func__,__LINE__);
+	return 1;
+}
+
+
+
 /* script4 system llb_snat xxxx"
  * script4 system llb_snat xxxx add llb_snat_sourceip/llb_snat_transip=2.3.4.5
  * script4 system llb_snat xxxx sched_type=ip_rr,snat_type=snat/nonat */
@@ -2287,6 +2341,7 @@ static int analyzer_system_llb_snat(char *cmdarg, struct event *e)
 {
 	char snat_name[1024] = {0}, op[1024] = {0}, key[1024] = {0}, value[1024] = {0};
 	int ret = -1;
+	syslog(LOG_INFO, "****%s%d", __func__,__LINE__);
 
 	sscanf(cmdarg, "%s %s %s %s", snat_name, op, key, value);
 
@@ -2301,12 +2356,31 @@ static int analyzer_system_llb_snat(char *cmdarg, struct event *e)
 	} else {
 		ret = module_set("llb_snat", snat_name, op, key);
 	}
+	syslog(LOG_INFO, "****%s%d", __func__,__LINE__);
 
 	if (ret != 0) {
 		write_return_status(e->event_fd, ret);
 		return -1;
 	}
 
+	return 1;
+}
+
+static int analyzer_system_llb_qos_schedule(char *cmdarg, struct event *e)
+{
+	char qos_schedule_name[1024] = {0}, key[1024] = {0}, value[1024] = {0};
+	int ret = 0;
+
+	sscanf(cmdarg, "%s %s %s", qos_schedule_name, key, value);
+	strtolower(qos_schedule_name);
+
+	ret = module_set("llb_qos_schedule", qos_schedule_name, key, value);
+	//llb_qos_schedule为m_desc
+
+	if (ret != 0) {
+		write_return_status(e->event_fd, ret);
+		return -1;
+	}
 	return 1;
 }
 
@@ -2486,6 +2560,7 @@ static int analyzer_system(char *cmdarg, struct event *e)
 		{"interface", analyzer_system_interface},
 		{"vlan", analyzer_system_vlan},
 		{"snat", analyzer_system_snat},
+		{"qos_class", analyzer_system_qos_class},
 		{"dnat", analyzer_system_dnat},
 		{"rtable", analyzer_system_rtable},
 		{"arptable", analyzer_system_arptable},
@@ -2517,14 +2592,15 @@ static int analyzer_system(char *cmdarg, struct event *e)
 		{"llb_vserver", analyzer_system_llb_vserver},
 		{"llb_pool", analyzer_system_llb_pool},
 		{"llb_system", analyzer_system_llb_system},
+		{"llb_qos_schedule", analyzer_system_llb_qos_schedule},
 		{"llb_snat", analyzer_system_llb_snat},
+		{"llb_qos_class", analyzer_system_llb_qos_class},
 		{"check_subnet", analyzer_system_check_subnet}, //仅仅是为了判断两个ip/netmask 是否在同一网段
 		{"under_gslb", analyzer_system_under_gslb},
 		{"sync_group", analyzer_system_sync_group},
 		{"firewall", analyzer_system_firewall},
 		{"walknetwork", analyzer_system_walk4rs},
 	};
-
 
 	memset(section, '\0', sizeof(section));
 	sscanf(cmdarg, "%s", section);	/* delete, certificate, vserver... */
@@ -2620,11 +2696,13 @@ int analyzer_entrance(char *cmdarg, struct event *e)
 		goto start_analyze;
 	}
 
+#if 0
 	/* License check, return -1 represent license invalid */
 	if ((is_license_ok = license_check()) == -1) {
 		WRITE_BACK(e, "EBADLICENSE\n\n");
 		return 0;	/* don't generate config */
 	}
+#endif
 
 start_analyze:
 #if defined(DEBUG)
