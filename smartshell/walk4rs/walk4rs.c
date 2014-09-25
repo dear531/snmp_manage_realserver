@@ -89,6 +89,7 @@ rsip_rsnode_list(char *ip, struct appnode *appnode)
 				strerror(errno), __FILE__, __func__, __LINE__);
 		goto err;
 	}
+	memcpy(rsnode->snmp_weight, "-1", sizeof("-1"));
 	memcpy(rsnode->ip, ip, strlen(ip) + 1);
 	INIT_LIST_HEAD(&rsnode->list);
 	list_add(&rsnode->list, &appnode->child_list);
