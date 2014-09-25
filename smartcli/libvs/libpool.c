@@ -1491,10 +1491,10 @@ static int pool_print_for_normal(struct apppool *apppool)
 			strcpy(buff, apppool->name);
 		}
 
-        char show_subjionsched[1024] = {0};
+        char show_subjoinsched[1024] = {0};
         if (0 != apppool->subjoinsched[0]) {
-            memcpy(show_subjionsched, "subjionsched=", sizeof("subjionsched="));
-            strcat(show_subjionsched, apppool->subjoinsched);
+            memcpy(show_subjoinsched, "subjoinsched=", sizeof("subjoinsched="));
+            strcat(show_subjoinsched, apppool->subjoinsched);
         }
 
 		/** show Pool line **/
@@ -1502,7 +1502,7 @@ static int pool_print_for_normal(struct apppool *apppool)
 			{12, buff},
 			{21, ""},
 			{12, apppool->healthcheck},
-			{29, show_subjionsched},
+			{29, show_subjoinsched},
 		};
 
 		show_line(show_fmt, sizeof(show_fmt) / sizeof(struct show_fmt));
