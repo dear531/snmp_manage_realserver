@@ -117,7 +117,7 @@ static int snmp_oid(char *rsinfo, char *oid, int show_mod)
 		fprintf(stdout, "%s", prompt);
 	}
 
-	if (0 == memcmp(oid, STANDARD_CPU_OID, sizeof(STANDARD_CPU_OID)) && 0 == walk_ret && 0 <= total) {
+	if (0 == memcmp(oid, STANDARD_CPU_OID, sizeof(STANDARD_CPU_OID)) && 0 == walk_ret && 0 <= total && 0 < counter) {
 		/* success : walk return 0 and get data */
 		ret = total / counter;
 	} else if (0 == memcmp(oid, STANDARD_MEM_TYPE, sizeof(STANDARD_MEM_TYPE)) && 0 < total) {
