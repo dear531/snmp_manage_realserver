@@ -65,6 +65,30 @@ static int print_rserver_parameter(FILE *fp, struct rserver *rserver)
 	fprintf(fp, ";\n");
 	return 0;
 }
+/* modify@zhangly2014.9.25, for snmp protocol dynamic algrothm weight */
+static int print_rserver_parameter_snmp_weght(FILE *fp, struct rserver *rserver)
+{
+	if (atoi(rserver->snmp_weight) > 0)
+		fprintf(fp, " weight=%s", rserver->snmp_weight);
+
+	if (atoi(rserver->maxconn) > 0)
+		fprintf(fp, " maxconn=%s", rserver->maxconn);
+
+	/* smartl7 don't care  bandwidth, if and bandwidth , smartl7 configuration can't through. */
+#if 0
+	if (strlen(rserver->bandwidth))
+		fprintf(fp, " bandwidth=%s", rserver->bandwidth);
+#endif 
+
+	if (atoi(rserver->maxreq) > 0)
+		fprintf(fp, " maxreq=%s", rserver->maxreq);
+
+	if ((strlen(rserver->enable) && !strcmp(rserver->enable, "off")) ||
+			rserver_draining_or_disabling(rserver))
+		fprintf(fp, " down");
+	fprintf(fp, ";\n");
+	return 0;
+}
 
 
 static int print_rserver(FILE *fp, struct rserver *rserver, const int n)
@@ -94,6 +118,34 @@ static int print_rserver(FILE *fp, struct rserver *rserver, const int n)
 	return 0;
 }
 
+
+/* modify@zhangly2014.9.25, for snmp protocol dynamic algrothm weight */
+static int print_rserver_snmp_weight(FILE *fp, struct rserver *rserver, const int n)
+{
+	char ip[STR_IP_LEN], port[STR_PORT_LEN];
+	char address[BUFSIZ];
+
+	inet_sockaddr2ipport(&rserver->address, ip, port);
+	inet_sockaddr2address(&rserver->address, address);
+
+#define POOL_OR_BACKPOOL_SNMP_WEIGHT(fp, n) 				\
+	do {							 	\
+		if(atoi(port) == 0) {		 			\
+			fprintf(fp, "\t\tserver\t%s", ip);		\
+		} else {						\
+			fprintf(fp, "\t\tserver\t%s", address);		\
+		}							\
+		if (n == 0) { 						\
+			if (strlen(rserver->snmp_weight)) 		\
+			fprintf(fp, " weight=%s", rserver->snmp_weight);\
+			fprintf(fp, " backup;\n");			\
+		} else { 						\
+			print_rserver_parameter_snmp_weght(fp, rserver);\
+		} 							\
+	} while(0) 
+	POOL_OR_BACKPOOL_SNMP_WEIGHT(fp, n);
+	return 0;
+}
 
 static int print_core_lines(FILE *fp)
 {
@@ -242,7 +294,11 @@ static int print_upstream_block(FILE *fp, struct vserver *vs,
 			continue;
 		}
 		rserver_num ++;
-		print_rserver(fp, rserver, 1);
+		if (0 == memcmp(pool->subjoinsched, "snmp", sizeof("snmp"))) {
+			print_rserver_snmp_weight(fp, rserver, 1);
+		} else {
+			print_rserver(fp, rserver, 1);
+		}
 	}
 
 process_backpool:
@@ -261,7 +317,11 @@ process_backpool:
 			continue;
 		}
 		rserver_num ++;
-		print_rserver(fp, rserver, 0);
+		if (0 == memcmp(pool->subjoinsched, "snmp", sizeof("snmp"))) {
+			print_rserver_snmp_weight(fp, rserver, 1);
+		} else {
+			print_rserver(fp, rserver, 1);
+		}
 	}
 
 process_realserver_ok:
@@ -372,7 +432,11 @@ static int print_rule_upstream_block(FILE *fp, struct vserver *vs, char *pool_na
 			continue;
 		}
 		rserver_num ++;
-		print_rserver(fp, rserver, 1); 
+		if (0 == memcmp(apppool->subjoinsched, "snmp", sizeof("snmp"))) {
+			print_rserver_snmp_weight(fp, rserver, 1);
+		} else {
+			print_rserver(fp, rserver, 1);
+		}
 	}
 
 	if (rserver_num == 0) {
